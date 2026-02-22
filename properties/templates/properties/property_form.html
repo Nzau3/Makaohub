@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}Add Property | MakaoHub{% endblock %}
+
+{% block content %}
+<div class="row my-5">
+    <div class="col-md-8 offset-md-2">
+        <h1>Add a Rental Property</h1>
+        <p class="text-muted">Fill in the property details and upload images for tenants to view.</p>
+
+        <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Property Information</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Title -->
+                    <div class="mb-3">
+                        <label for="{{ form.title.id_for_label }}" class="form-label">{{ form.title.label }}</label>
+                        {{ form.title }}
+                        {% if form.title.errors %}
+                            <div class="text-danger small mt-1">{{ form.title.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Property Type -->
+                    <div class="mb-3">
+                        <label for="{{ form.property_type.id_for_label }}" class="form-label">{{ form.property_type.label }}</label>
+                        {{ form.property_type }}
+                        {% if form.property_type.errors %}
+                            <div class="text-danger small mt-1">{{ form.property_type.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Neighborhood -->
+                    <div class="mb-3">
+                        <label for="{{ form.neighborhood.id_for_label }}" class="form-label">{{ form.neighborhood.label }}</label>
+                        {{ form.neighborhood }}
+                        {% if form.neighborhood.errors %}
+                            <div class="text-danger small mt-1">{{ form.neighborhood.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <!-- Location -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.location.id_for_label }}" class="form-label">{{ form.location.label }}</label>
+                            {{ form.location }}
+                            {% if form.location.errors %}
+                                <div class="text-danger small mt-1">{{ form.location.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Nearby Shopping Center -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.nearby_shopping_center.id_for_label }}" class="form-label">{{ form.nearby_shopping_center.label }}</label>
+                            {{ form.nearby_shopping_center }}
+                            {% if form.nearby_shopping_center.errors %}
+                                <div class="text-danger small mt-1">{{ form.nearby_shopping_center.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Monthly Rent -->
+                    <div class="mb-3">
+                        <label for="{{ form.monthly_rent.id_for_label }}" class="form-label">{{ form.monthly_rent.label }} (KES)</label>
+                        {{ form.monthly_rent }}
+                        {% if form.monthly_rent.errors %}
+                            <div class="text-danger small mt-1">{{ form.monthly_rent.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <div class="text-danger small mt-1">{{ form.description.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <!-- Latitude -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.latitude.id_for_label }}" class="form-label">{{ form.latitude.label }} (Optional)</label>
+                            {{ form.latitude }}
+                            <small class="form-text text-muted">For map location (e.g., -4.043477)</small>
+                            {% if form.latitude.errors %}
+                                <div class="text-danger small mt-1">{{ form.latitude.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Longitude -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.longitude.id_for_label }}" class="form-label">{{ form.longitude.label }} (Optional)</label>
+                            {{ form.longitude }}
+                            <small class="form-text text-muted">For map location (e.g., 37.903977)</small>
+                            {% if form.longitude.errors %}
+                                <div class="text-danger small mt-1">{{ form.longitude.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <button type="button" id="property-use-location-btn" class="btn btn-outline-secondary btn-sm">
+                            Use my location
+                        </button>
+                        <span id="property-location-status" class="small text-muted ms-2"></span>
+                    </div>
+
+                    <!-- Availability -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.is_available }}
+                            <label for="{{ form.is_available.id_for_label }}" class="form-check-label">{{ form.is_available.label }}</label>
+                        </div>
+                        {% if form.is_available.errors %}
+                            <div class="text-danger small mt-1">{{ form.is_available.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Optional property video (landlord only; .mp4, .mov, .avi, max 50MB) -->
+                    <div class="mb-3">
+                        <label for="{{ form.video.id_for_label }}" class="form-label">{{ form.video.label }} (Optional)</label>
+                        {{ form.video }}
+                        <small class="form-text text-muted">Upload a short video of the property (optional). Accepted: MP4, MOV, AVI. Max 50 MB.</small>
+                        {% if form.video.errors %}
+                            <div class="text-danger small mt-1">{{ form.video.errors }}</div>
+                        {% endif %}
+                        {% if is_edit and property.video %}
+                            <p class="small text-muted mt-1 mb-0">Current: <a href="{{ property.video.url }}" target="_blank" rel="noopener">{{ property.video.name }}</a>. Upload a new file to replace.</p>
+                        {% endif %}
+                        {% if user.is_authenticated and user.profile.role == 'landlord' %}
+                        <button type="button" class="btn btn-outline-secondary payment-btn mt-2"
+                          data-feature="video"
+                          data-bs-toggle="tooltip"
+                          data-bs-placement="top"
+                          title="Upload a property video for KES 200. Payment required."
+                          {% if not user.profile.phone_number %}disabled{% endif %}>
+                          <span class="locked-text">Upload Video (KES 200)</span>
+                          <span class="unlocked-text d-none">Video Upload Unlocked</span>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Images Formset -->
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Upload Images (up to 3)</h5>
+                </div>
+                <div class="card-body">
+                    {{ formset.management_form }}
+                    {% for form_img in formset %}
+                        <div class="border p-3 mb-3 formset-form">
+                            <h6>Image {{ forloop.counter }}</h6>
+                            <div class="mb-2">
+                                {{ form_img.image }}
+                                {% if form_img.image.errors %}
+                                    <div class="text-danger small mt-1">{{ form_img.image.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="mb-2">
+                                <label for="{{ form_img.caption.id_for_label }}" class="form-label">Caption (Optional)</label>
+                                {{ form_img.caption }}
+                                {% if form_img.caption.errors %}
+                                    <div class="text-danger small mt-1">{{ form_img.caption.errors }}</div>
+                                {% endif %}
+                            </div>
+                            {% if form_img.id %}
+                                <div class="form-check">
+                                    {{ form_img.DELETE }}
+                                    <label for="{{ form_img.DELETE.id_for_label }}" class="form-check-label">Delete this image</label>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Submit -->
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-5">
+                <a href="{% url 'properties:my_properties' %}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Save Property</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    input[type="text"],
+    input[type="number"],
+    input[type="email"],
+    select,
+    textarea {
+        max-width: 100%;
+        border: 1px solid #ccc;
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var latEl = document.getElementById('id_latitude');
+    var lonEl = document.getElementById('id_longitude');
+    var neighborhoodEl = document.getElementById('id_neighborhood');
+    var btn = document.getElementById('property-use-location-btn');
+    var statusEl = document.getElementById('property-location-status');
+
+    if (!latEl || !lonEl || !btn) return;
+
+    var googleMapsKey = '{{ google_maps_api_key|default:""|escapejs }}';
+
+    function setStatus(msg, isError) {
+        if (statusEl) {
+            statusEl.textContent = msg || '';
+            statusEl.className = 'small ms-2 ' + (isError ? 'text-danger' : 'text-muted');
+        }
+    }
+
+    function roundCoord(val) {
+        return Math.round(val * 1e6) / 1e6;
+    }
+
+    function fillCoords(lat, lng) {
+        latEl.value = roundCoord(lat);
+        lonEl.value = roundCoord(lng);
+    }
+
+    function tryReverseGeocode(lat, lng, done) {
+        if (!googleMapsKey || !neighborhoodEl) { done(); return; }
+        var url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=' + lat + ',' + lng + '&key=' + googleMapsKey;
+        fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.status !== 'OK' || !data.results || !data.results.length) { done(); return; }
+            var text = (data.results[0].formatted_address || '') + ' ' +
+                (data.results[0].address_components || []).map(function(c) { return c.long_name + ' ' + c.short_name; }).join(' ');
+            text = text.toLowerCase();
+            var map = { 'machakos cbd': 'machakos_cbd', 'mikuyuni': 'mikuyuni', 'matungulu': 'matungulu', 'kangundo': 'kangundo', 'kiambu': 'kiambu' };
+            var value = 'other';
+            for (var name in map) { if (text.indexOf(name) !== -1) { value = map[name]; break; } }
+            for (var i = 0; i < neighborhoodEl.options.length; i++) {
+                if (neighborhoodEl.options[i].value === value) { neighborhoodEl.selectedIndex = i; break; }
+            }
+            done();
+        }).catch(function() { done(); });
+    }
+
+    function onPositionSuccess(position) {
+        var lat = position.coords.latitude;
+        var lng = position.coords.longitude;
+        fillCoords(lat, lng);
+        setStatus('Location set. You can edit the coordinates.');
+        tryReverseGeocode(lat, lng, function() {});
+    }
+
+    function onPositionError(err) {
+        if (err.code === 1) setStatus('Location access denied. You can enter coordinates manually.');
+        else if (err.code === 2) setStatus('Location unavailable.');
+        else setStatus('');
+    }
+
+    function requestLocation() {
+        setStatus('Detecting…');
+        if (!navigator.geolocation) {
+            setStatus('Geolocation not supported.', true);
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(onPositionSuccess, onPositionError, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        });
+    }
+
+    if (btn) btn.addEventListener('click', requestLocation);
+
+    // Optional: trigger once on page load (browser may prompt for permission)
+    if (latEl && !latEl.value) {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(onPositionSuccess, function() {}, { timeout: 8000, maximumAge: 60000 });
+        }
+    }
+})();
+</script>
+{% endblock %}

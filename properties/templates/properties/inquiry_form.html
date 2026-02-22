@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Inquire about {{ property.title }} | MakaoHub{% endblock %}
+
+{% block content %}
+<div class="my-5">
+    <div class="container" style="max-width: 720px;">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Send Inquiry</h5>
+                <small>To: {{ property.landlord.get_full_name|default:property.landlord.username }}</small>
+            </div>
+            <div class="card-body">
+                <p class="mb-2"><strong>Property:</strong> {{ property.title }} — {{ property.location }}</p>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        {{ form.message.label_tag }}
+                        {{ form.message }}
+                        {% if form.message.errors %}
+                            <div class="text-danger small">{{ form.message.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Send Inquiry</button>
+                        <a href="{% url 'properties:detail' property.id %}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}My Properties | MakaoHub{% endblock %}
+
+{% block content %}
+<div class="my-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>My Properties</h1>
+        <a href="{% url 'properties:create' %}" class="btn btn-success">+ Add Property</a>
+    </div>
+
+    <!-- Tabs: All / Available / Unavailable -->
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all-pane" type="button" role="tab">
+                All ({{ properties.count }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="available-tab" data-bs-toggle="tab" data-bs-target="#available-pane" type="button" role="tab">
+                Available ({{ properties|dictsort:"is_available"|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="unavailable-tab" data-bs-toggle="tab" data-bs-target="#unavailable-pane" type="button" role="tab">
+                Unavailable
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- All Properties -->
+        <div class="tab-pane fade show active" id="all-pane" role="tabpanel">
+            {% if properties %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Title</th>
+                                <th>Type</th>
+                                <th>Location</th>
+                                <th>Monthly Rent</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for property in properties %}
+                                <tr>
+                                    <td><strong>{{ property.title }}</strong></td>
+                                    <td>{{ property.get_property_type_display }}</td>
+                                    <td>{{ property.location }}</td>
+                                    <td>KES {{ property.monthly_rent|floatformat:0 }}</td>
+                                    <td>
+                                        {% if property.is_available %}
+                                            <span class="badge bg-success">Available</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Not Available</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'properties:detail' property.id %}" class="btn btn-sm btn-primary">View</a>
+                                        <a href="{% url 'properties:update' property.id %}" class="btn btn-sm btn-warning">Edit</a>
+                                        <a href="{% url 'properties:delete' property.id %}" class="btn btn-sm btn-danger">Delete</a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info text-center py-5">
+                    <h5>No properties listed yet</h5>
+                    <p class="mb-3">Start by adding your first rental property.</p>
+                    <a href="{% url 'properties:create' %}" class="btn btn-success">Add Your First Property</a>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Available Properties -->
+        <div class="tab-pane fade" id="available-pane" role="tabpanel">
+            {% if available_properties %}
+                <div class="row">
+                    {% for property in properties %}
+                        {% if property.is_available %}
+                            <div class="col-md-6 col-lg-4 mb-4">
+                                <div class="card h-100">
+                                    {% if property.images.first %}
+                                        <img src="{{ property.images.first.image.url }}" class="card-img-top" style="height: 200px; object-fit: cover;">
+                                    {% else %}
+                                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                                            <span class="text-muted">No image</span>
+                                        </div>
+                                    {% endif %}
+                                    <div class="card-body">
+                                        <h5 class="card-title">{{ property.title }}</h5>
+                                        <p class="card-text text-muted small">{{ property.location }}</p>
+                                        <p class="card-text"><strong>KES {{ property.monthly_rent|floatformat:0 }}</strong>/month</p>
+                                        <a href="{% url 'properties:detail' property.id %}" class="btn btn-primary btn-sm w-100">View</a>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info">No available properties.</div>
+            {% endif %}
+        </div>
+
+        <!-- Unavailable Properties -->
+        <div class="tab-pane fade" id="unavailable-pane" role="tabpanel">
+            {% if unavailable_properties %}
+                <div class="row">
+                    {% for property in properties %}
+                        {% if not property.is_available %}
+                            <div class="col-md-6 col-lg-4 mb-4">
+                                <div class="card h-100 opacity-75">
+                                    {% if property.images.first %}
+                                        <img src="{{ property.images.first.image.url }}" class="card-img-top" style="height: 200px; object-fit: cover;">
+                                    {% else %}
+                                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                                            <span class="text-muted">No image</span>
+                                        </div>
+                                    {% endif %}
+                                    <div class="card-body">
+                                        <h5 class="card-title">{{ property.title }}</h5>
+                                        <p class="card-text text-muted small">{{ property.location }}</p>
+                                        <p class="card-text"><strong>KES {{ property.monthly_rent|floatformat:0 }}</strong>/month</p>
+                                        <span class="badge bg-secondary mb-2">Not Available</span>
+                                        <a href="{% url 'properties:detail' property.id %}" class="btn btn-secondary btn-sm w-100">View</a>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info">All your properties are available!</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

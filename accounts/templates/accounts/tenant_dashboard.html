@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Tenant Dashboard - MakaoHub{% endblock %}
+
+{% block content %}
+<div class="py-5">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-8">
+        <h1 class="h4">Tenant Dashboard</h1>
+        <p class="text-muted">Welcome, {{ user.get_full_name|default:user.username }}!</p>
+
+        <div class="card mb-3">
+          <div class="card-body">
+            <h5 class="card-title">Account Information</h5>
+            <p class="card-text mb-1"><strong>Username:</strong> {{ user.username }}</p>
+            <p class="card-text mb-1"><strong>Email:</strong> {{ user.email }}</p>
+            <p class="card-text mb-1"><strong>Role:</strong> Tenant</p>
+            <a href="{% url 'accounts:profile_edit' %}" class="btn btn-sm btn-outline-secondary">Edit Profile</a>
+          </div>
+        </div>
+
+        <h5 class="mt-4">My Activity</h5>
+        <div class="list-group mb-4">
+          <a href="{% url 'properties:tenant_inbox' %}" class="list-group-item list-group-item-action">
+            <i class="fas fa-inbox me-2"></i>Inbox
+          </a>
+          <a href="{% url 'properties:list' %}" class="list-group-item list-group-item-action">Browse Available Rentals</a>
+          <a href="{% url 'properties:saved' %}" class="list-group-item list-group-item-action">My Saved Properties</a>
+          <a href="{% url 'core:contact' %}" class="list-group-item list-group-item-action">Contact Landlords</a>
+        </div>
+
+        <h5 class="mt-3">Saved Properties</h5>
+        {% if saved_properties %}
+          <div class="row">
+            {% for property in saved_properties %}
+              <div class="col-md-6 mb-3">
+                <div class="card h-100 shadow-sm">
+                  <!-- Thumbnail -->
+                  {% if property.images.first %}
+                    <img src="{{ property.images.first.image.url }}" class="card-img-top" alt="{{ property.title }}" style="height: 140px; object-fit: cover;">
+                  {% else %}
+                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 140px;">
+                      <span class="text-muted small">No image</span>
+                    </div>
+                  {% endif %}
+
+                  <div class="card-body p-3">
+                    <h6 class="card-title mb-1">{{ property.title }}</h6>
+                    <p class="card-text small mb-1">
+                      <strong>Location:</strong> {{ property.location }}<br>
+                      <strong>Rent:</strong> KES {{ property.monthly_rent|floatformat:0 }}
+                    </p>
+                    <div class="d-grid gap-1">
+                      <a href="{% url 'properties:detail' property.id %}" class="btn btn-sm btn-primary">View Details</a>
+                      <a href="{% url 'properties:unsave' property.id %}" class="btn btn-sm btn-outline-danger">Remove</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-muted small">You haven't saved any properties yet. Browse listings and save the ones you like.</p>
+        {% endif %}
+      </div>
+
+      <div class="col-md-4">
+        <div class="card mb-3">
+          <div class="card-body">
+            <h6 class="card-title">Quick Stats</h6>
+            <p class="card-text mb-0">Saved properties: <strong>{{ saved_properties_count }}</strong></p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <a href="{% url 'properties:list' %}" class="btn btn-primary w-100 mb-2">Start Browsing</a>
+            <a href="{% url 'accounts:logout' %}" class="btn btn-outline-secondary w-100">Sign Out</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

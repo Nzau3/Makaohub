@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Profile - MakaoHub{% endblock %}
+
+{% block content %}
+<div class="py-5">
+  <div class="container" style="max-width: 480px;">
+    <h1 class="h4 mb-4">Edit Profile</h1>
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" role="alert">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="mb-3">
+        <label for="id_phone_number" class="form-label">Mobile Number</label>
+        {{ form.phone_number }}
+        {% if form.phone_number.errors %}
+          <div class="invalid-feedback d-block">{{ form.phone_number.errors.0 }}</div>
+        {% endif %}
+        <div class="form-text">Required for payments and contact. Format: 07XXXXXXXX or 01XXXXXXXX</div>
+      </div>
+      <button type="submit" class="btn btn-primary">Update</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

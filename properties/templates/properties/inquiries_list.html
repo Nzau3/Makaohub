@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Property Inquiries - MakaoHub{% endblock %}
+
+{% block content %}
+<div class="my-5">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Property Inquiries</h1>
+            <a href="{% url 'properties:my_properties' %}" class="btn btn-outline-secondary">Back to My Properties</a>
+        </div>
+
+        <!-- Statistics -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ total_count }}</h5>
+                        <p class="card-text text-muted">Total Inquiries</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-warning">{{ pending_count }}</h5>
+                        <p class="card-text text-muted">Pending</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-success">{{ responded_count }}</h5>
+                        <p class="card-text text-muted">Responded</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inquiries List -->
+        {% if inquiries %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Property</th>
+                            <th>Inquirer</th>
+                            <th>Email</th>
+                            <th>Message</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inquiry in inquiries %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'properties:detail' inquiry.property.id %}">{{ inquiry.property.title }}</a>
+                                </td>
+                                <td>{{ inquiry.name }}</td>
+                                <td>{{ inquiry.email }}</td>
+                                <td>
+                                    <span class="text-truncate d-inline-block" style="max-width: 200px;" title="{{ inquiry.message }}">
+                                        {{ inquiry.message|truncatewords:10 }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if inquiry.status == 'pending' %}
+                                        <span class="badge bg-warning">Pending</span>
+                                    {% elif inquiry.status == 'responded' %}
+                                        <span class="badge bg-success">Responded</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Closed</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ inquiry.created_at|date:"M d, Y" }}</td>
+                                <td>
+                                    <a href="{% url 'properties:inquiry_detail' inquiry.id %}" class="btn btn-sm btn-primary">View</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info text-center py-5">
+                <h4>No Inquiries Yet</h4>
+                <p>You haven't received any inquiries about your properties yet.</p>
+                <a href="{% url 'properties:my_properties' %}" class="btn btn-primary">View My Properties</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

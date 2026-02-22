@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Property | MakaoHub{% endblock %}
+
+{% block content %}
+<div class="row my-5">
+	<div class="col-md-8 offset-md-2">
+		<div class="card border-danger">
+			<div class="card-header bg-danger text-white">
+				<h5 class="mb-0">⚠️ Delete Property</h5>
+			</div>
+			<div class="card-body">
+				<h4>{{ property.title }}</h4>
+				<p class="text-muted">{{ property.location }} — KES {{ property.monthly_rent|floatformat:0 }}/month</p>
+
+				<div class="alert alert-warning mt-3">
+					<strong>Warning:</strong> Deleting this property is permanent. All inquiries and images associated with this property will also be deleted.
+				</div>
+
+				<form method="post" class="mt-4">
+					{% csrf_token %}
+					<div class="d-grid gap-2 d-md-flex justify-content-md-end">
+						<a href="{% url 'properties:detail' property.id %}" class="btn btn-secondary">Cancel</a>
+						<button type="submit" class="btn btn-danger">🗑️ Delete Property</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %}

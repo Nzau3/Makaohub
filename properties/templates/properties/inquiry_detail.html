@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Inquiry Details - MakaoHub{% endblock %}
+
+{% block extra_head %}
+<style>
+	/* Threaded conversation styling: tenant messages left, landlord messages right */
+	.message-thread {
+		max-height: 500px;
+		overflow-y: auto;
+		padding: 1rem;
+		background: #f8f9fa;
+		border-radius: 0.25rem;
+	}
+	.message-item {
+		margin-bottom: 1rem;
+		display: flex;
+		flex-direction: column;
+	}
+	.message-item.tenant-message {
+		align-items: flex-start;
+	}
+	.message-item.landlord-message {
+		align-items: flex-end;
+	}
+	.message-bubble {
+		max-width: 70%;
+		padding: 0.75rem 1rem;
+		border-radius: 1rem;
+		word-wrap: break-word;
+	}
+	.message-item.tenant-message .message-bubble {
+		background: #e9ecef;
+		color: #212529;
+		border-bottom-left-radius: 0.25rem;
+	}
+	.message-item.landlord-message .message-bubble {
+		background: #0d6efd;
+		color: white;
+		border-bottom-right-radius: 0.25rem;
+	}
+	.message-meta {
+		font-size: 0.75rem;
+		color: #6c757d;
+		margin-top: 0.25rem;
+		padding: 0 0.5rem;
+	}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="my-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8">
+                <!-- Original inquiry details (preserved) -->
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">Inquiry Details</h4>
+                    </div>
+                    <div class="card-body">
+                        <h5>Property: <a href="{% url 'properties:detail' inquiry.property.id %}">{{ inquiry.property.title }}</a></h5>
+                        <hr>
+                        
+                        <div class="mb-3">
+                            <strong>Inquirer Name:</strong>
+                            <p>{{ inquiry.name }}</p>
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Email:</strong>
+                            <p><a href="mailto:{{ inquiry.email }}">{{ inquiry.email }}</a></p>
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Status:</strong>
+                            <p>
+                                {% if inquiry.status == 'pending' %}
+                                    <span class="badge bg-warning">Pending</span>
+                                {% elif inquiry.status == 'responded' %}
+                                    <span class="badge bg-success">Responded</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Closed</span>
+                                {% endif %}
+                            </p>
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Initial Message:</strong>
+                            <p class="border rounded p-3 bg-light">{{ inquiry.message|linebreaks }}</p>
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Submitted:</strong>
+                            <p>{{ inquiry.created_at|date:"F d, Y g:i A" }}</p>
+                        </div>
+
+                        {% if inquiry.updated_at != inquiry.created_at %}
+                            <div class="mb-3">
+                                <strong>Last Updated:</strong>
+                                <p>{{ inquiry.updated_at|date:"F d, Y g:i A" }}</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Threaded messages (Phase 1: non-real-time) -->
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Conversation</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if thread_messages %}
+                            <div class="message-thread">
+                                {% for msg in thread_messages %}
+                                    <div class="message-item {% if msg.sender == inquiry.tenant %}tenant-message{% else %}landlord-message{% endif %}">
+                                        <div class="message-bubble">
+                                            {{ msg.body|linebreaks }}
+                                        </div>
+                                        <div class="message-meta">
+                                            <strong>{{ msg.sender.get_full_name|default:msg.sender.username }}</strong>
+                                            {% if msg.sender == inquiry.tenant %}
+                                                <span class="badge bg-secondary">Tenant</span>
+                                            {% else %}
+                                                <span class="badge bg-primary">Landlord</span>
+                                            {% endif %}
+                                            · {{ msg.created_at|date:"M d, Y g:i A" }}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="p-4 text-center text-muted">
+                                <p class="mb-0">No messages yet. Start the conversation below.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Send new message form (tenant or landlord) -->
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Send Message</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                {{ message_form.body }}
+                                {% if message_form.body.errors %}
+                                    <div class="text-danger small mt-1">{{ message_form.body.errors }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">{{ message_form.body.help_text }}</small>
+                            </div>
+                            <button type="submit" class="btn btn-success">Send Message</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <!-- Status update (landlord only) -->
+                {% if is_landlord %}
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">Update Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="status" class="form-label">Status</label>
+                                <select name="status" id="status" class="form-select">
+                                    <option value="pending" {% if inquiry.status == 'pending' %}selected{% endif %}>Pending</option>
+                                    <option value="responded" {% if inquiry.status == 'responded' %}selected{% endif %}>Responded</option>
+                                    <option value="closed" {% if inquiry.status == 'closed' %}selected{% endif %}>Closed</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Update Status</button>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="card mt-3">
+                    <div class="card-body">
+                        {% if is_landlord %}
+                            <a href="{% url 'properties:inquiries' %}" class="btn btn-outline-secondary w-100">Back to Inquiries</a>
+                        {% else %}
+                            <a href="{% url 'properties:list' %}" class="btn btn-outline-secondary w-100">Back to Properties</a>
+                        {% endif %}
+                        <a href="{% url 'properties:detail' inquiry.property.id %}" class="btn btn-outline-primary w-100 mt-2">View Property</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

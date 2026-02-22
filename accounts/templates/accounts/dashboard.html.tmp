@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - MakaoHub{% endblock %}
+
+{% block content %}
+<div class="py-5">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-8">
+        <h1 class="h4">Welcome, {{ user.get_full_name|default:user.username }}</h1>
+        <p class="text-muted">Manage your listings, inquiries, and profile.</p>
+
+        <div class="card mb-3">
+          <div class="card-body">
+            <h5 class="card-title">Your account</h5>
+            <p class="card-text mb-1"><strong>Username:</strong> {{ user.username }}</p>
+            <p class="card-text mb-1"><strong>Email:</strong> {{ user.email }}</p>
+            <a href="{% url 'accounts:profile_edit' %}" class="btn btn-sm btn-outline-secondary me-2">Edit profile</a>
+            <a href="{% url 'accounts:logout' %}" class="btn btn-sm btn-outline-danger">Sign out</a>
+          </div>
+        </div>
+
+        <h5 class="mt-4">My activity</h5>
+        <div class="list-group mb-4">
+          <a href="/properties/" class="list-group-item list-group-item-action">Browse properties</a>
+          <a href="/my-listings/" class="list-group-item list-group-item-action">My listings</a>
+          <a href="/messages/" class="list-group-item list-group-item-action">Messages & inquiries</a>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="card-title">Quick actions</h6>
+            <a href="/list/" class="btn btn-primary w-100 mb-2">List a property</a>
+            <a href="/properties/?saved=1" class="btn btn-outline-secondary w-100">Saved properties</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

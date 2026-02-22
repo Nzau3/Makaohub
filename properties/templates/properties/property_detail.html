@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}{{ property.title }} | MakaoHub{% endblock %}
+
+{% block extra_head %}
+    <!-- Leaflet CSS for map (existing behavior; kept when Google Maps key is missing) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <style>
+        #map {
+            height: 400px;
+            border-radius: 0.25rem;
+        }
+        /* Small Google Maps preview (Phase 1); only shown when API key is set */
+        #map-google-preview {
+            height: 220px;
+            border-radius: 0.25rem;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="my-5">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'properties:list' %}">Properties</a></li>
+            <li class="breadcrumb-item active">{{ property.title }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- Left Column: Images and Details -->
+        <div class="col-lg-8">
+            <!-- Images Carousel -->
+            {% if images %}
+                <div id="propertyCarousel" class="carousel slide mb-4" data-bs-ride="carousel">
+                    <div class="carousel-inner">
+                        {% for img in images %}
+                            {% if img.image %}
+                                <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                                    <img src="{{ img.image.url }}" class="d-block w-100 img-fluid" alt="{% if img.caption %}{{ img.caption }}{% else %}{{ property.title }}{% endif %}" style="max-height: 500px; object-fit: cover;">
+                                    {% if img.caption %}
+                                        <div class="carousel-caption d-none d-md-block bg-dark bg-opacity-50 rounded">
+                                            <p>{{ img.caption }}</p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% if images|length > 1 %}
+                        <button class="carousel-control-prev" type="button" data-bs-target="#propertyCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Previous</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#propertyCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Next</span>
+                        </button>
+                    {% endif %}
+                </div>
+                <!-- Image Thumbnails -->
+                {% if images|length > 1 %}
+                    <div class="row mb-4">
+                        {% for img in images %}
+                            {% if img.image %}
+                                <div class="col-6 col-md-3 mb-2">
+                                    <img src="{{ img.image.url }}" class="img-thumbnail img-fluid w-100" alt="{% if img.caption %}{{ img.caption }}{% else %}{{ property.title }} thumbnail{% endif %}" style="max-height: 100px; object-fit: cover;">
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="bg-light p-5 text-center mb-4 rounded">
+                    <p class="text-muted mb-0">No images available for this property.</p>
+                </div>
+            {% endif %}
+
+            <!-- Property video (optional): HTML5 player; tenants and public can view -->
+            {% if property.video %}
+                <div class="card mb-4">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">Property Video</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <video controls width="100%" preload="metadata" class="rounded-bottom">
+                            <source src="{{ property.video.url }}">
+                            <p class="p-3 text-muted small mb-0">Your browser does not support the video tag. <a href="{{ property.video.url }}">Download the video</a>.</p>
+                        </video>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Property Details Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">{{ property.title }}</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Property Type:</strong>
+                            <p>{{ property.get_property_type_display }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Availability:</strong>
+                            <p>
+                                {% if property.is_available %}
+                                    <span class="badge bg-success">Available</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Not Available</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Location:</strong>
+                            <p>{{ property.location }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Monthly Rent:</strong>
+                            <p class="text-success" style="font-size: 1.25rem;"><strong>KES {{ property.monthly_rent|floatformat:0 }}</strong></p>
+                        </div>
+                    </div>
+
+                    {% if property.nearby_shopping_center %}
+                        <div class="mb-3">
+                            <strong>Nearby Shopping Center:</strong>
+                            <p>{{ property.nearby_shopping_center }}</p>
+                        </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <strong>Description:</strong>
+                        <p>{{ property.description|linebreaks }}</p>
+                    </div>
+
+                    <p class="text-muted small">
+                        <strong>Listed:</strong> {{ property.created_at|date:"F d, Y" }} | 
+                        <strong>Updated:</strong> {{ property.updated_at|date:"F d, Y" }}
+                    </p>
+
+                    <!-- Landlord Actions: Edit/Delete (only for property owner) -->
+                    {% if user.is_authenticated and user.profile.role == 'landlord' and property.landlord == user %}
+                        <div class="mt-3 pt-3 border-top">
+                            <a href="{% url 'properties:update' property.id %}" class="btn btn-warning btn-sm me-2">Edit Property</a>
+                            <a href="{% url 'properties:delete' property.id %}" class="btn btn-danger btn-sm">Delete Property</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Map & Inquiry -->
+        <div class="col-lg-4">
+            <!-- Map: Leaflet (existing; always shown when coordinates exist) -->
+            {% if property.latitude and property.longitude %}
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Property Location</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="map"></div>
+                    </div>
+                </div>
+                {% if google_maps_api_key %}
+                <!-- Small Google Maps preview (Phase 1). Future: optional full-page map view at properties:map -->
+                <div class="card mb-4">
+                    <div class="card-header bg-secondary text-white py-2">
+                        <h6 class="mb-0">Map preview</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="map-google-preview"></div>
+                    </div>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Location</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Coordinates not available. Contact the landlord for precise location.</p>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Landlord Contact Card (only for tenants, not for property owner) -->
+            {% if not user.is_authenticated or user.profile.role != 'landlord' or property.landlord != user %}
+                <div class="card mb-4">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">Contact Landlord</h5>
+                    </div>
+                    <div class="card-body">
+                                                <p><strong>Listed by:</strong> {{ property.landlord.get_full_name|default:property.landlord.username }}</p>
+                                                <p class="text-muted small">Email: <code>{{ masked_landlord_email }}</code></p>
+                                                {% if user.is_authenticated and user.profile.role == 'tenant' %}
+                                                        <!-- Payment Buttons: Unlock Contact, Unlock Chat, Confirm Visit/Booking -->
+                                                        <div class="d-flex flex-wrap gap-2 mb-2">
+                                                            <button type="button" class="btn btn-outline-primary payment-btn"
+                                                                data-feature="contact"
+                                                                data-bs-toggle="tooltip"
+                                                                data-bs-placement="top"
+                                                                title="Unlock landlord's contact details for KES 50. Payment required."
+                                                                {% if not user.profile.phone_number %}disabled{% endif %}>
+                                                                <span class="locked-text">Unlock Contact (KES 50)</span>
+                                                                <span class="unlocked-text d-none">Contact Unlocked</span>
+                                                            </button>
+                                                            <button type="button" class="btn btn-outline-success payment-btn"
+                                                                data-feature="chat"
+                                                                data-bs-toggle="tooltip"
+                                                                data-bs-placement="top"
+                                                                title="Unlock chat with landlord for KES 80. Payment required."
+                                                                {% if not user.profile.phone_number %}disabled{% endif %}>
+                                                                <span class="locked-text">Unlock Chat (KES 80)</span>
+                                                                <span class="unlocked-text d-none">Chat Unlocked</span>
+                                                            </button>
+                                                            <button type="button" class="btn btn-outline-warning payment-btn"
+                                                                data-feature="visit"
+                                                                data-bs-toggle="tooltip"
+                                                                data-bs-placement="top"
+                                                                title="Confirm a visit or booking for KES 100. Payment required."
+                                                                {% if not user.profile.phone_number %}disabled{% endif %}>
+                                                                <span class="locked-text">Confirm Visit/Booking (KES 100)</span>
+                                                                <span class="unlocked-text d-none">Visit/Booking Confirmed</span>
+                                                            </button>
+                                                        </div>
+                                                        {% if not user.profile.phone_number %}
+                                                            <div class="alert alert-info mt-2">
+                                                                <i class="bi bi-info-circle"></i>
+                                                                Please add your phone number to your profile to enable payments.
+                                                            </div>
+                                                        {% endif %}
+                                                        <a href="{% url 'properties:send_inquiry' property.id %}" class="btn btn-success w-100 mb-2">Inquire About Property</a>
+                                                        <form method="post" action="{% if is_saved %}{% url 'properties:unsave' property.id %}{% else %}{% url 'properties:save' property.id %}{% endif %}">
+                                                                {% csrf_token %}
+                                                                <button type="submit" class="btn {% if is_saved %}btn-outline-danger{% else %}btn-outline-primary{% endif %} w-100">
+                                                                        {% if is_saved %}Remove from Saved{% else %}Save Property{% endif %}
+                                                                </button>
+                                                        </form>
+                                                {% else %}
+                                                        <a href="{% url 'properties:send_inquiry' property.id %}" class="btn btn-success w-100">Inquire About Property</a>
+                                                {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Back Link -->
+            <div>
+                <a href="{% url 'properties:list' %}" class="btn btn-outline-secondary w-100">← Back to Listings</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Leaflet JS for map (existing; unchanged) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+    {% if property.latitude and property.longitude %}
+        // Initialize Leaflet map
+        const map = L.map('map').setView([{{ property.latitude }}, {{ property.longitude }}], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19,
+        }).addTo(map);
+        
+        L.marker([{{ property.latitude }}, {{ property.longitude }}])
+            .bindPopup("<strong>{{ property.title }}</strong><br>{{ property.location }}")
+            .addTo(map);
+    {% endif %}
+</script>
+{% if property.latitude and property.longitude and google_maps_api_key %}
+<!-- Google Maps preview (Phase 1). Load only when key and coordinates exist; app works without key. -->
+<script>
+window.initMakaoHubGooglePreview = function() {
+    var center = { lat: {{ property.latitude }}, lng: {{ property.longitude }} };
+    var mapEl = document.getElementById('map-google-preview');
+    if (!mapEl) return;
+    var map = new google.maps.Map(mapEl, {
+        center: center,
+        zoom: 15,
+        mapTypeControl: true,
+        streetViewControl: false,
+        fullscreenControl: true,
+    });
+    new google.maps.Marker({ position: center, map: map, title: "{{ property.title|escapejs }}" });
+};
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMakaoHubGooglePreview" async defer></script>
+{% endif %}
+{% endblock %}

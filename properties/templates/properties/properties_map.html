@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}View Properties on Map | MakaoHub{% endblock %}
+
+{% block extra_head %}
+<style>
+	.filter-card {
+		background: #f8f9fa;
+		padding: 1rem 1.5rem;
+		border-radius: 8px;
+		margin-bottom: 1.5rem;
+	}
+	#properties-map {
+		height: 500px;
+		width: 100%;
+		border-radius: 0.25rem;
+		background: #e9ecef;
+	}
+</style>
+<!-- Leaflet CSS (used when Google Maps API key is not set) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+{% endblock %}
+
+{% block content %}
+<div class="my-4">
+	<div class="container-fluid">
+		<!-- Header and link back to list -->
+		<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+			<div>
+				<h1 class="h4 mb-1">View all properties on map</h1>
+				<p class="text-muted small mb-0">Apply filters below; only properties with map location are shown as markers.</p>
+			</div>
+			<a href="{% url 'properties:list' %}" class="btn btn-outline-secondary btn-sm">← Back to list</a>
+		</div>
+
+		<!-- Same filters as listing page; submit to map view so filters apply to map -->
+		<div class="filter-card">
+			<h5 class="mb-3">Search & Filter</h5>
+			<form method="get" action="{% url 'properties:map' %}">
+				<div class="row g-3 mb-3">
+					<div class="col-md-4">
+						<label class="form-label small">Neighborhood</label>
+						{{ form.neighborhood }}
+					</div>
+					<div class="col-md-4">
+						<label class="form-label small">Property Type</label>
+						{{ form.property_type }}
+					</div>
+					<div class="col-md-4">
+						<label class="form-label small">Search</label>
+						{{ form.search_query }}
+					</div>
+				</div>
+				<div class="row g-3 mb-3">
+					<div class="col-md-3">
+						<label class="form-label small">Min Price (KES)</label>
+						{{ form.min_price }}
+					</div>
+					<div class="col-md-3">
+						<label class="form-label small">Max Price (KES)</label>
+						{{ form.max_price }}
+					</div>
+					<div class="col-md-4">
+						<label class="form-label small">Preset Budgets</label>
+						<div class="d-flex gap-2 flex-wrap">
+							<a href="{% url 'properties:map' %}?max_price=5000" class="btn btn-outline-info btn-sm">Budget (≤5K)</a>
+							<a href="{% url 'properties:map' %}?max_price=10000" class="btn btn-outline-success btn-sm">Student (≤10K)</a>
+							<a href="{% url 'properties:map' %}?min_price=10000&max_price=20000" class="btn btn-outline-primary btn-sm">Mid (10-20K)</a>
+							<a href="{% url 'properties:map' %}?min_price=20000" class="btn btn-outline-dark btn-sm">Premium (20K+)</a>
+						</div>
+					</div>
+					<div class="col-md-2 d-flex align-items-end">
+						<div class="form-check">
+							{{ form.with_map_location }}
+							<label class="form-check-label small" for="id_with_map_location">{{ form.with_map_location.label }}</label>
+						</div>
+					</div>
+				</div>
+				<div class="row g-2">
+					<div class="col-auto">
+						<button type="submit" class="btn btn-primary btn-sm">Apply filters</button>
+					</div>
+					<div class="col-auto">
+						<a href="{% url 'properties:map' %}" class="btn btn-outline-secondary btn-sm">↺ Reset</a>
+					</div>
+				</div>
+			</form>
+		</div>
+
+		<!-- Map container: Leaflet fallback if no Google key; Google Maps if API key set -->
+		<div class="mb-4">
+			<div class="d-flex justify-content-between align-items-center mb-2">
+				<span class="small text-muted"><strong>{{ markers|length }}</strong> properties on map</span>
+			</div>
+			<div id="properties-map"></div>
+		</div>
+	</div>
+</div>
+
+{{ markers|json_script:"markers-data" }}
+{% if not google_maps_api_key %}
+<!-- Leaflet JS: load before inline script when using Leaflet fallback (no Google key) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+{% endif %}
+<script>
+	(function() {
+		var markersDataEl = document.getElementById('markers-data');
+		var markers = markersDataEl ? JSON.parse(markersDataEl.textContent) : [];
+		var defaultCenter = { lat: -1.5148, lng: 37.6624 };
+		var hasGoogleKey = {{ google_maps_api_key|yesno:"true,false" }};
+
+		function escapeHtml(text) {
+			if (!text) return '';
+			var div = document.createElement('div');
+			div.textContent = text;
+			return div.innerHTML;
+		}
+
+		if (hasGoogleKey) {
+			// Google Maps branch: use when GOOGLE_MAPS_API_KEY is set
+			window.initMakaoHubMapView = function() {
+				var mapEl = document.getElementById('properties-map');
+				if (!mapEl) return;
+				var map = new google.maps.Map(mapEl, {
+					center: defaultCenter,
+					zoom: 12,
+					mapTypeControl: true,
+					streetViewControl: false,
+					fullscreenControl: true,
+					zoomControl: true,
+				});
+				var bounds = null;
+				markers.forEach(function(m) {
+					var pos = { lat: m.lat, lng: m.lon };
+					var marker = new google.maps.Marker({ position: pos, map: map, title: m.title });
+					var popupContent = '<div class="p-2" style="min-width: 180px;">' +
+						'<strong>' + escapeHtml(m.title) + '</strong><br>' +
+						'<span class="small text-muted">' + escapeHtml(m.neighborhood) + '</span><br>' +
+						'<a href="' + escapeHtml(m.detail_url) + '" class="btn btn-sm btn-primary mt-2">View details</a></div>';
+					var infoWindow = new google.maps.InfoWindow({ content: popupContent });
+					marker.addListener('click', function() { infoWindow.open(map, marker); });
+					if (!bounds) bounds = new google.maps.LatLngBounds();
+					bounds.extend(pos);
+				});
+				if (bounds && markers.length > 0) map.fitBounds(bounds);
+			};
+		} else {
+			// Leaflet fallback: when no Google API key; zoom/pan work out of the box
+			var mapEl = document.getElementById('properties-map');
+			if (mapEl && typeof L !== 'undefined') {
+				var map = L.map('properties-map').setView([defaultCenter.lat, defaultCenter.lng], 12);
+				L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+					attribution: '&copy; OpenStreetMap contributors',
+					maxZoom: 19,
+				}).addTo(map);
+				var bounds = null;
+				markers.forEach(function(m) {
+					var popupContent = '<div class="p-1">' +
+						'<strong>' + escapeHtml(m.title) + '</strong><br>' +
+						'<span class="small text-muted">' + escapeHtml(m.neighborhood) + '</span><br>' +
+						'<a href="' + escapeHtml(m.detail_url) + '">View details</a></div>';
+					L.marker([m.lat, m.lon]).bindPopup(popupContent).addTo(map);
+					if (!bounds) bounds = L.latLngBounds([m.lat, m.lon], [m.lat, m.lon]);
+					else bounds.extend([m.lat, m.lon]);
+				});
+				if (bounds && markers.length > 0) map.fitBounds(bounds);
+			}
+		}
+	})();
+</script>
+{% if google_maps_api_key %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMakaoHubMapView" async defer></script>
+{% endif %}
+{% endblock %}

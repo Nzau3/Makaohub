@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Student Rentals in Machakos | MakaoHub{% endblock %}
+
+{% block extra_head %}
+<style>
+	.filter-card {
+		background: #f8f9fa;
+		padding: 1.5rem;
+		border-radius: 8px;
+		margin-bottom: 2rem;
+	}
+	.badge-machakos {
+		background-color: #28a745;
+		color: white;
+		padding: 0.5rem 0.75rem;
+		border-radius: 4px;
+		font-size: 0.85rem;
+	}
+	.price-highlight {
+		font-size: 1.4rem;
+		font-weight: bold;
+		color: #198754;
+	}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="my-5">
+	<div class="container">
+		<!-- Header -->
+		<div class="mb-4">
+			<h1 class="h3">Student Rentals in Machakos Town</h1>
+			<p class="lead text-muted">Discover affordable, student-friendly accommodation near shopping centers, landmarks, and transport hubs.</p>
+		</div>
+
+		<!-- Filter Form -->
+		<div class="filter-card">
+			<h5 class="mb-3">Search & Filter</h5>
+			<form method="get" class="">
+				<!-- Row 1: Neighborhood and Property Type -->
+				<div class="row g-3 mb-3">
+					<div class="col-md-4">
+						{{ form.neighborhood }}
+					</div>
+					<div class="col-md-4">
+						{{ form.property_type }}
+					</div>
+					<div class="col-md-4">
+						{{ form.search_query }}
+					</div>
+				</div>
+
+				<!-- Row 2: Price Range and location-based filter -->
+				<div class="row g-3 mb-3">
+					<div class="col-md-3">
+						<label class="form-label small">Min Price (KES)</label>
+						{{ form.min_price }}
+					</div>
+					<div class="col-md-3">
+						<label class="form-label small">Max Price (KES)</label>
+						{{ form.max_price }}
+					</div>
+					<div class="col-md-4">
+						<label class="form-label small">Preset Budgets</label>
+						<div class="d-flex gap-2 flex-wrap">
+							<a href="?max_price=5000" class="btn btn-outline-info btn-sm">Budget (≤5K)</a>
+							<a href="?max_price=10000" class="btn btn-outline-success btn-sm">Student (≤10K)</a>
+							<a href="?min_price=10000&max_price=20000" class="btn btn-outline-primary btn-sm">Mid (10-20K)</a>
+							<a href="?min_price=20000" class="btn btn-outline-dark btn-sm">Premium (20K+)</a>
+						</div>
+					</div>
+					<div class="col-md-2 d-flex align-items-end">
+						<div class="form-check">
+							{{ form.with_map_location }}
+							<label class="form-check-label small" for="id_with_map_location">{{ form.with_map_location.label }}</label>
+						</div>
+					</div>
+				</div>
+
+				<!-- Action Buttons -->
+				<div class="row g-2">
+					<div class="col-auto">
+						<button type="submit" class="btn btn-primary btn-sm">Apply Filters</button>
+					</div>
+					<div class="col-auto">
+						<a href="{% url 'properties:list' %}" class="btn btn-outline-secondary btn-sm">↺ Reset</a>
+					</div>
+				</div>
+			</form>
+		</div>
+
+		<!-- Quick Stats -->
+		<div class="alert alert-info mb-4">
+			<strong>{{ properties|length }}</strong> properties available in Machakos · Currency: <strong>Kenyan Shillings (KES)</strong>
+			{% comment %}Future: add "View on map" link here pointing to properties:map for interactive map view.{% endcomment %}
+		</div>
+
+		<!-- Properties Grid -->
+		<div class="row">
+			{% if properties %}
+				{% for property in properties %}
+					<div class="col-md-6 col-lg-4 mb-4">
+						<div class="card h-100 shadow-sm">
+							<!-- Property Image or Placeholder -->
+							{% if property.images.first %}
+								<img src="{{ property.images.first.image.url }}" class="card-img-top" alt="{{ property.title }}" style="height: 200px; object-fit: cover;">
+							{% else %}
+								<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+									<span class="text-muted">No image</span>
+								</div>
+							{% endif %}
+
+							<div class="card-body">
+								<h5 class="card-title">{{ property.title }}</h5>
+								
+								<!-- Property Type Badge -->
+								<span class="badge badge-machakos mb-2">{{ property.get_property_type_display }}</span>
+
+								<!-- Location & Neighborhood -->
+								<p class="card-text small mb-2">
+									<strong>Location:</strong> {{ property.location }}
+									<br/>
+									<strong>Area:</strong> {{ property.get_neighborhood_display }}
+								</p>
+
+								<!-- Monthly Rent (Highlighted) -->
+								<p class="card-text price-highlight mb-2">
+									KES {{ property.monthly_rent|floatformat:0 }}
+									<span class="text-muted" style="font-size: 0.8rem;">/month</span>
+								</p>
+
+								<!-- Nearby Shopping Center -->
+								{% if property.nearby_shopping_center %}
+									<p class="card-text small text-muted mb-2">
+										<strong>Near:</strong> {{ property.nearby_shopping_center }}
+									</p>
+								{% endif %}
+
+								<!-- Availability Badge -->
+								{% if property.is_available %}
+									<span class="badge bg-success">✓ Available</span>
+								{% else %}
+									<span class="badge bg-secondary">Occupied</span>
+								{% endif %}
+
+								<!-- View Details / Save Buttons -->
+								<div class="mt-3">
+									<a href="{% url 'properties:detail' property.id %}" class="btn btn-primary btn-sm w-100 mb-2">View Details</a>
+									{% if user.is_authenticated and user.profile.role == 'tenant' %}
+										<form method="post" action="{% if property.id in saved_property_ids %}{% url 'properties:unsave' property.id %}{% else %}{% url 'properties:save' property.id %}{% endif %}">
+											{% csrf_token %}
+											<button type="submit" class="btn btn-sm w-100 {% if property.id in saved_property_ids %}btn-outline-danger{% else %}btn-outline-primary{% endif %}">
+												{% if property.id in saved_property_ids %}Remove from Saved{% else %}Save Property{% endif %}
+											</button>
+										</form>
+									{% endif %}
+								</div>
+							</div>
+						</div>
+					</div>
+				{% endfor %}
+			{% else %}
+				<div class="col-12">
+					<div class="alert alert-info text-center py-5">
+						<h4>No properties found</h4>
+						<p>Try adjusting your search filters or browse all listings.</p>
+						<a href="{% url 'properties:list' %}" class="btn btn-outline-primary">Show All Listings</a>
+					</div>
+				</div>
+			{% endif %}
+		</div>
+
+		<!-- Landlord CTA -->
+		{% if user.is_authenticated and user.profile.role == 'landlord' %}
+		<div class="alert alert-success mt-4" role="alert">
+			<h5>List Your Property</h5>
+			<p>Help students find their perfect home. <a href="{% url 'properties:create' %}" class="btn btn-sm btn-success">+ Add Property</a></p>
+		</div>
+		{% elif not user.is_authenticated %}
+		<div class="alert alert-info mt-4" role="alert">
+			<h5>Want to List a Property?</h5>
+			<p><a href="{% url 'accounts:register' %}" class="btn btn-sm btn-info">Register as Landlord</a> to start listing properties and reaching students.</p>
+		</div>
+		{% endif %}
+	</div>
+</div>
+
+{% endblock %}

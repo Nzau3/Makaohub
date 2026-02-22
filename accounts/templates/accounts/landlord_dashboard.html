@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Landlord Dashboard - MakaoHub{% endblock %}
+
+{% block content %}
+<div class="py-5">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-8">
+        <h1 class="h4">Landlord Dashboard</h1>
+        <p class="text-muted">Welcome, {{ user.get_full_name|default:user.username }}!</p>
+
+        <div class="card mb-3">
+          <div class="card-body">
+            <h5 class="card-title">Account Information</h5>
+            <p class="card-text mb-1"><strong>Username:</strong> {{ user.username }}</p>
+            <p class="card-text mb-1"><strong>Email:</strong> {{ user.email }}</p>
+            <p class="card-text mb-1"><strong>Role:</strong> Landlord</p>
+            <a href="{% url 'accounts:profile_edit' %}" class="btn btn-sm btn-outline-secondary">Edit Profile</a>
+          </div>
+        </div>
+
+        <h5 class="mt-4">My Properties</h5>
+        <div class="list-group">
+          <a href="{% url 'properties:my_properties' %}" class="list-group-item list-group-item-action">My Listings</a>
+          <a href="{% url 'properties:landlord_inbox' %}" class="list-group-item list-group-item-action">
+            <i class="fas fa-inbox me-2"></i>Inbox
+          </a>
+          <a href="{% url 'properties:inquiries' %}" class="list-group-item list-group-item-action">
+            Tenant Inquiries
+            {% if pending_inquiries > 0 %}
+              <span class="badge bg-warning float-end">{{ pending_inquiries }}</span>
+            {% endif %}
+          </a>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card mb-3">
+          <div class="card-body">
+            <h6 class="card-title">Quick Stats</h6>
+            <p class="card-text mb-0">Total properties: <strong>{{ total_properties }}</strong></p>
+            <p class="card-text mb-0">Active listings: <strong>{{ active_listings }}</strong></p>
+            <p class="card-text mb-0">Total inquiries: <strong>{{ total_inquiries }}</strong></p>
+            <p class="card-text">Pending inquiries: <strong>{{ pending_inquiries }}</strong></p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <a href="{% url 'properties:create' %}" class="btn btn-primary w-100 mb-2">List a Property</a>
+            <a href="{% url 'accounts:logout' %}" class="btn btn-outline-secondary w-100">Sign Out</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

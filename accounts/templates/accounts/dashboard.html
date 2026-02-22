@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - MakaoHub{% endblock %}
+
+{% block content %}
+<div class="py-5">
+	<div class="container">
+		<div class="row">
+			<div class="col-md-8">
+				<h1 class="h4">Welcome, {{ user.get_full_name|default:user.username }}</h1>
+				<p class="text-muted">Manage your listings, inquiries, and profile.</p>
+
+				<div class="card mb-3">
+					<div class="card-body">
+						<h5 class="card-title">Your account</h5>
+						<p class="card-text mb-1"><strong>Username:</strong> {{ user.username }}</p>
+						<p class="card-text mb-1"><strong>Email:</strong> {{ user.email }}</p>
+						<a href="{% url 'accounts:profile_edit' %}" class="btn btn-sm btn-outline-secondary me-2">Edit profile</a>
+						<a href="{% url 'accounts:logout' %}" class="btn btn-sm btn-outline-danger">Sign out</a>
+					</div>
+				</div>
+
+				<h5 class="mt-4">My activity</h5>
+				<div class="list-group mb-4">
+					{% if user.is_authenticated and user.profile.role == 'landlord' %}
+						<a href="{% url 'properties:my_properties' %}" class="list-group-item list-group-item-action">My Properties</a>
+						<a href="{% url 'properties:create' %}" class="list-group-item list-group-item-action">Add New Property</a>
+						<a href="{% url 'properties:inquiries' %}" class="list-group-item list-group-item-action">Tenant Inquiries</a>
+					{% elif user.is_authenticated and user.profile.role == 'tenant' %}
+						<a href="{% url 'properties:list' %}" class="list-group-item list-group-item-action">Browse Properties</a>
+						<a href="{% url 'properties:saved' %}" class="list-group-item list-group-item-action">Saved Properties</a>
+						<a href="{% url 'core:contact' %}" class="list-group-item list-group-item-action">Contact Landlords</a>
+					{% endif %}
+				</div>
+			</div>
+
+			<div class="col-md-4">
+				<div class="card">
+					<div class="card-body">
+						<h6 class="card-title">Quick actions</h6>
+						{% if user.is_authenticated and user.profile.role == 'landlord' %}
+							<a href="{% url 'properties:create' %}" class="btn btn-primary w-100 mb-2">List a property</a>
+							<a href="{% url 'properties:my_properties' %}" class="btn btn-outline-secondary w-100">My Properties</a>
+						{% elif user.is_authenticated and user.profile.role == 'tenant' %}
+							<a href="{% url 'properties:list' %}" class="btn btn-primary w-100 mb-2">Browse Properties</a>
+							<a href="{% url 'properties:saved' %}" class="btn btn-outline-secondary w-100">Saved properties</a>
+						{% endif %}
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %}
