@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "core",
     'accounts',
     'properties',
+    'mpesa',
 ]
 
 MIDDLEWARE = [
@@ -140,3 +141,10 @@ LOGOUT_REDIRECT_URL = reverse_lazy("core:index")
 # Google Maps (Phase 1: location filters and map preview)
 # Set GOOGLE_MAPS_API_KEY in environment; app works without it (Leaflet fallback on detail).
 GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()
+
+# M-Pesa Daraja API settings (Phase 2: payment integration)
+MPESA_CONSUMER_KEY = os.environ.get("MPESA_CONSUMER_KEY", "").strip()
+MPESA_CONSUMER_SECRET = os.environ.get("MPESA_CONSUMER_SECRET", "").strip()
+MPESA_SHORTCODE = os.environ.get("MPESA_SHORTCODE", "").strip()
+MPESA_PASSKEY = os.environ.get("MPESA_PASSKEY", "").strip()
+MPESA_BASE_URL = os.environ.get("MPESA_BASE_URL", "https://sandbox.safaricom.co.ke").strip()
