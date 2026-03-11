@@ -1,3 +1,60 @@
+from django.contrib.auth.decorators import login_required
+from django.utils import timezone
+from django.http import JsonResponse
+from datetime import timedelta
+@login_required
+def activate_featured(request, property_id):
+	property = get_object_or_404(Property, id=property_id, landlord=request.user)
+	property.is_featured = True
+	property.featured_until = timezone.now() + timedelta(days=30)
+	property.save()
+	return JsonResponse({
+		"success": True,
+		"message": "Property featured successfully"
+	})
+from accounts.decorators import landlord_required
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
+# Simulated Payment model
+from django.db import models
+from django.conf import settings as django_settings
+from .models import Payment
+
+@login_required
+@landlord_required
+@csrf_exempt
+def start_featured_payment(request, id):
+	"""Simulate payment initiation for featured listing."""
+	property = get_object_or_404(Property, id=id, landlord=request.user)
+	payment = Payment.objects.create(
+		user=request.user,
+		property=property,
+		feature="featured_listing",
+		amount=300,
+		status="pending"
+	)
+	return JsonResponse({"message": "Payment started", "payment_id": payment.id})
+
+@login_required
+@landlord_required
+@csrf_exempt
+def confirm_featured_payment(request, id):
+	"""Simulate payment confirmation and activate featured status."""
+	property = get_object_or_404(Property, id=id, landlord=request.user)
+	payment = Payment.objects.filter(property=property, user=request.user, feature="featured_listing", status="pending").last()
+	if payment:
+		payment.status = "success"
+		payment.save()
+		property.is_featured = True
+		from django.utils import timezone
+		from datetime import timedelta
+		property.featured_until = timezone.now() + timedelta(days=30)
+		property.save()
+		return JsonResponse({"success": True, "featured_until": property.featured_until.strftime('%Y-%m-%d %H:%M:%S')})
+	return JsonResponse({"success": False})
+from django.http import JsonResponse
+from django.utils import timezone
+from datetime import timedelta
 from django.conf import settings as django_settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -83,8 +140,8 @@ def property_list(request):
 			monthly_rent__lte=10000,  # Budget-friendly limit (approx USD 75)
 		).order_by("monthly_rent")
 	else:
-		# Default ordering: recent listings first, then cheapest
-		properties = properties.order_by("-created_at")
+		# Featured properties first, then recent
+		properties = properties.order_by('-is_featured', '-created_at')
 
 	# Map context for list (and future full-page map view at e.g. properties:map)
 	map_context = {

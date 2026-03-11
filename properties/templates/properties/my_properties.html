@@ -63,6 +63,43 @@
                                         <a href="{% url 'properties:detail' property.id %}" class="btn btn-sm btn-primary">View</a>
                                         <a href="{% url 'properties:update' property.id %}" class="btn btn-sm btn-warning">Edit</a>
                                         <a href="{% url 'properties:delete' property.id %}" class="btn btn-sm btn-danger">Delete</a>
+                                        {% if user.is_authenticated and user.profile.role == 'landlord' %}
+                                            <button type="button" class="btn btn-sm btn-success feature-btn" data-property-id="{{ property.id }}" onclick="simulateFeaturePayment({{ property.id }})">Feature Property</button>
+                                        {% endif %}
+                                    <script>
+                                    function simulateFeaturePayment(propertyId) {
+                                        // Simulate payment popup
+                                        if (window.bootstrap) {
+                                            var modalHtml = `
+                                                <div class="modal fade" id="featureModal" tabindex="-1" aria-labelledby="featureModalLabel" aria-hidden="true">
+                                                    <div class="modal-dialog modal-dialog-centered">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header">
+                                                                <h5 class="modal-title" id="featureModalLabel">Feature Property</h5>
+                                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <p>Payment integration coming soon.<br>Upon successful payment, your property will be featured for 30 days.</p>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>`;
+                                            var tempDiv = document.createElement('div');
+                                            tempDiv.innerHTML = modalHtml;
+                                            document.body.appendChild(tempDiv.firstChild);
+                                            var modal = new bootstrap.Modal(document.getElementById('featureModal'));
+                                            modal.show();
+                                            document.getElementById('featureModal').addEventListener('hidden.bs.modal', function() {
+                                                document.getElementById('featureModal').remove();
+                                            });
+                                        } else {
+                                            alert('Payment integration coming soon. Upon successful payment, your property will be featured for 30 days.');
+                                        }
+                                    }
+                                    </script>
                                     </td>
                                 </tr>
                             {% endfor %}

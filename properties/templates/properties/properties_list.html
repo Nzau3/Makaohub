@@ -116,6 +116,9 @@
 								
 								<!-- Property Type Badge -->
 								<span class="badge badge-machakos mb-2">{{ property.get_property_type_display }}</span>
+								{% if property.is_featured %}
+									<span class="badge bg-warning text-dark ms-2">Featured</span>
+								{% endif %}
 
 								<!-- Location & Neighborhood -->
 								<p class="card-text small mb-2">

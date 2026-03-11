@@ -95,49 +95,94 @@
       <a href="{% url 'properties:list' %}?student=1" class="btn btn-outline-primary">Browse More</a>
     </div>
 
-    <div class="row g-4">
-      <div class="col-md-4">
-        <div class="card h-100 shadow-sm">
-          <div class="bg-light d-flex align-items-center justify-content-center" style="height: 180px; font-size: 3rem;">Property Image</div>
-          <div class="card-body d-flex flex-column">
-            <h5 class="card-title">Budget Bedsitter - Mikuyuni</h5>
-            <p class="card-text text-muted small">Single room, shared facilities, near shops.</p>
-            <div class="mt-auto">
-              <p class="mb-2"><strong class="text-success" style="font-size: 1.3rem;">KES 3,500</strong><span class="text-muted small">/month</span></p>
-              <a href="{% url 'properties:list' %}" class="btn btn-sm btn-outline-primary">View Similar</a>
+    <div class="d-flex flex-wrap gap-4 justify-content-center">
+      {% if featured_properties %}
+        {% for property in featured_properties %}
+          <div class="featured-card card border shadow rounded-3 mb-3" style="width: 340px; position: relative; transition: transform 0.2s;">
+            <div style="position: relative;">
+              {% if property.images.first %}
+                <img src="{{ property.images.first.image.url }}" class="card-img-top rounded-top" style="height: 180px; object-fit: cover;" alt="Property image">
+              {% else %}
+                <div class="bg-light d-flex align-items-center justify-content-center rounded-top" style="height: 180px; font-size: 2rem;">No Image</div>
+              {% endif %}
+              <span class="badge bg-warning text-dark position-absolute top-0 start-0 m-2" style="font-size: 1rem; z-index: 2;">⭐ Featured</span>
+            </div>
+            <div class="card-body d-flex flex-column">
+              <h5 class="card-title mb-2">
+                <a href="{% url 'properties:detail' property.id %}" class="text-decoration-none text-dark">{{ property.title }}</a>
+              </h5>
+              <p class="card-text text-muted small mb-2">{{ property.description|truncatechars:100 }}</p>
+              <div class="mt-auto">
+                <p class="mb-2"><strong class="text-success" style="font-size: 1.3rem;">KES {{ property.monthly_rent|floatformat:0 }}</strong><span class="text-muted small">/month</span></p>
+                <a href="{% url 'properties:detail' property.id %}" class="btn btn-sm btn-outline-primary mb-2">View Details</a>
+                {% if user.is_authenticated and user.profile and user.profile.role == 'tenant' %}
+                  <div class="d-flex flex-wrap gap-2 mb-2">
+                    <button type="button" class="btn btn-outline-primary payment-btn"
+                      data-feature="contact"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      title="Unlock landlord's contact details for KES 50. Payment required."
+                      {% if not user.profile.phone_number %}disabled{% endif %}
+                      onclick="simulatePayment('contact', {{ property.id }})">
+                      <span class="locked-text">Unlock Contact (KES 50)</span>
+                      <span class="unlocked-text d-none">Contact Unlocked</span>
+                    </button>
+                    <button type="button" class="btn btn-outline-success payment-btn"
+                      data-feature="chat"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      title="Unlock chat with landlord for KES 80. Payment required."
+                      {% if not user.profile.phone_number %}disabled{% endif %}
+                      onclick="simulatePayment('chat', {{ property.id }})">
+                      <span class="locked-text">Unlock Chat (KES 80)</span>
+                      <span class="unlocked-text d-none">Chat Unlocked</span>
+                    </button>
+                    <button type="button" class="btn btn-outline-warning payment-btn"
+                      data-feature="visit"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      title="Confirm a visit or booking for KES 100. Payment required."
+                      {% if not user.profile.phone_number %}disabled{% endif %}
+                      onclick="simulatePayment('visit', {{ property.id }})">
+                      <span class="locked-text">Confirm Booking (KES 100)</span>
+                      <span class="unlocked-text d-none">Booking Confirmed</span>
+                    </button>
+                  </div>
+                  {% if not user.profile.phone_number %}
+                    <div class="alert alert-info mt-2">
+                      <i class="bi bi-info-circle"></i>
+                      Please add your phone number to your profile to enable payments.
+                    </div>
+                  {% endif %}
+                {% endif %}
+              </div>
             </div>
           </div>
+        {% endfor %}
+      {% else %}
+        <div class="w-100">
+          <div class="alert alert-info text-center">No featured properties at the moment. Check back soon!</div>
         </div>
-      </div>
-
-      <div class="col-md-4">
-        <div class="card h-100 shadow-sm">
-          <div class="bg-light d-flex align-items-center justify-content-center" style="height: 180px; font-size: 3rem;">Property Image</div>
-          <div class="card-body d-flex flex-column">
-            <h5 class="card-title">Cozy Studio - Machakos CBD</h5>
-            <p class="card-text text-muted small">Self-contained, modern utilities, walkable to center.</p>
-            <div class="mt-auto">
-              <p class="mb-2"><strong class="text-success" style="font-size: 1.3rem;">KES 6,500</strong><span class="text-muted small">/month</span></p>
-              <a href="{% url 'properties:list' %}" class="btn btn-sm btn-outline-primary">View Similar</a>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-md-4">
-        <div class="card h-100 shadow-sm">
-          <div class="bg-light d-flex align-items-center justify-content-center" style="height: 180px; font-size: 3rem;">Property Image</div>
-          <div class="card-body d-flex flex-column">
-            <h5 class="card-title">1-Bedroom Flat - Matungulu</h5>
-            <p class="card-text text-muted small">Spacious, quiet area, great for roommates.</p>
-            <div class="mt-auto">
-              <p class="mb-2"><strong class="text-success" style="font-size: 1.3rem;">KES 9,000</strong><span class="text-muted small">/month</span></p>
-              <a href="{% url 'properties:list' %}" class="btn btn-sm btn-outline-primary">View Similar</a>
-            </div>
-          </div>
-        </div>
-      </div>
+      {% endif %}
     </div>
+    <div class="text-center mt-4">
+      <a href="{% url 'properties:list' %}?featured=1" class="btn btn-primary btn-lg">See All Featured</a>
+    </div>
+    <style>
+      .featured-card:hover {
+        transform: translateY(-8px) scale(1.03);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      }
+    </style>
+    <script>
+      function simulatePayment(type, propertyId) {
+        let featureName = '';
+        if (type === 'contact') featureName = 'Unlock Contact';
+        else if (type === 'chat') featureName = 'Unlock Chat';
+        else if (type === 'visit') featureName = 'Confirm Booking';
+        alert('Payment integration coming soon. Upon successful payment, this feature will be unlocked. (' + featureName + ')');
+      }
+    </script>
   </div>
 </section>
 

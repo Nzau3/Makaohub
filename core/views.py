@@ -29,8 +29,11 @@ def start_browsing(request):
 
 
 def index(request):
-    """Render the homepage."""
-    return render(request, "core/home.html")
+    """Render the homepage with featured properties."""
+    from properties.models import Property
+    from django.utils import timezone
+    featured_properties = Property.objects.filter(is_featured=True, featured_until__gte=timezone.now()).order_by('-featured_until')[:3]
+    return render(request, "core/home.html", {"featured_properties": featured_properties})
 
 
 def about(request):

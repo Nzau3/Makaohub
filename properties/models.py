@@ -1,5 +1,68 @@
 from django.conf import settings
 from django.db import models
+from datetime import date
+
+def has_paid_rent(tenant, allocation):
+	from .models import RentPayment
+	today = date.today()
+	# Filter payments for current month and year
+	payments = RentPayment.objects.filter(
+		tenant=tenant,
+		allocation=allocation,
+		status='successful',
+		payment_date__year=today.year,
+		payment_date__month=today.month
+	)
+	return payments.exists()
+class TenantAllocation(models.Model):
+	property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='allocations')
+	tenant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='allocations')
+	room_number = models.CharField(max_length=20, blank=True, null=True)
+	rent_amount = models.DecimalField(max_digits=10, decimal_places=2)
+	start_date = models.DateField()
+	end_date = models.DateField(blank=True, null=True)
+	STATUS_CHOICES = [
+		('pending', 'Pending'),
+		('active', 'Active'),
+		('completed', 'Completed'),
+	]
+	status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+
+	class Meta:
+		unique_together = [['property', 'tenant', 'room_number', 'status']]
+		ordering = ['-start_date']
+
+	def __str__(self):
+		return f"{self.tenant.username} allocated to {self.property.title} (Room: {self.room_number or 'N/A'})"
+
+from django.db import models
+from django.conf import settings
+
+class RentPayment(models.Model):
+	tenant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='rent_payments')
+	allocation = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='rent_allocations')
+	amount = models.DecimalField(max_digits=10, decimal_places=2)
+	payment_date = models.DateTimeField(auto_now_add=True)
+	status = models.CharField(max_length=20, choices=[('successful', 'Successful'), ('pending', 'Pending')], default='pending')
+
+	class Meta:
+		ordering = ['-payment_date']
+		unique_together = [['tenant', 'allocation', 'payment_date']]
+
+	def __str__(self):
+		return f"RentPayment: {self.tenant.username} for {self.allocation.title} ({self.status})"
+from django.db import models
+# Payment model for featured listing payments
+from django.conf import settings as django_settings
+class Payment(models.Model):
+	user = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+	property = models.ForeignKey('Property', on_delete=models.CASCADE)
+	feature = models.CharField(max_length=50)
+	amount = models.DecimalField(max_digits=10, decimal_places=2)
+	status = models.CharField(max_length=20, default='pending')
+	created_at = models.DateTimeField(auto_now_add=True)
+from django.conf import settings
+from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 
@@ -88,6 +151,9 @@ class Property(models.Model):
 	)
 	description = models.TextField(blank=True)
 	is_available = models.BooleanField(default=True)
+	# Featured listing fields
+	is_featured = models.BooleanField(default=False)
+	featured_until = models.DateTimeField(null=True, blank=True)
 	# Optional fields to support map integration (latitude/longitude)
 	latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 	longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
@@ -109,6 +175,13 @@ class Property(models.Model):
 
 	def __str__(self):
 		return f"{self.title} — {self.location} ({self.get_property_type_display()})"
+
+	def save(self, *args, **kwargs):
+		from django.utils import timezone
+		if self.is_featured and self.featured_until:
+			if self.featured_until < timezone.now():
+				self.is_featured = False
+		super().save(*args, **kwargs)
 
 
 class PropertyImage(models.Model):
@@ -223,7 +296,9 @@ class Message(models.Model):
 		on_delete=models.CASCADE,
 		related_name="received_messages",
 		help_text=_("User who receives this message (tenant or landlord)."),
-	)
+    null=True,
+    blank=True
+)
 	body = models.TextField(
 		help_text=_("Message content."),
 	)

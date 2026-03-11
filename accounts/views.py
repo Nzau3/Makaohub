@@ -1,6 +1,28 @@
+from .decorators import tenant_required, landlord_required
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+@login_required
+@tenant_required
+@csrf_exempt
+def simulate_rent_payment(request, property_id):
+    """Simulate a successful rent payment for the allocated property."""
+    from properties.models import Property, RentPayment
+    user = request.user
+    property_obj = Property.objects.get(id=property_id)
+    amount = property_obj.monthly_rent
+    RentPayment.objects.create(
+        tenant=user,
+        allocation=property_obj,
+        amount=amount,
+        status='successful'
+    )
+    return JsonResponse({'status': 'success'})
+
+
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.shortcuts import redirect, render
 
@@ -38,6 +60,9 @@ def login_view(request):
         form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
             user = form.get_user()
+            # Ensure Profile exists for user
+            from .models import Profile
+            Profile.objects.get_or_create(user=user)
             login(request, user)
             messages.success(request, f"Welcome back, {user.get_username()}!")
             # Check for next_url, otherwise redirect based on role
@@ -108,18 +133,28 @@ def profile_update(request):
 @tenant_required
 def tenant_dashboard(request):
     """Dashboard for tenant users."""
-    from properties.models import SavedProperty
-    
+    from properties.models import SavedProperty, TenantAllocation, has_paid_rent, RentPayment
+
     user = request.user
     saved_qs = SavedProperty.objects.filter(tenant=user).select_related("property")
     saved_properties = [sp.property for sp in saved_qs]
     saved_count = len(saved_properties)
-    
+
+    allocation = TenantAllocation.objects.filter(tenant=user, status='active').first()
+    paid = False
+    last_payment = None
+    if allocation:
+        paid = has_paid_rent(user, allocation)
+        last_payment = RentPayment.objects.filter(tenant=user, allocation=allocation, status='successful').order_by('-payment_date').first()
+
     context = {
         "user": user,
         "role": "tenant",
         "saved_properties_count": saved_count,
         "saved_properties": saved_properties,
+        "allocation": allocation,
+        "paid": paid,
+        "last_payment": last_payment,
     }
     return render(request, "accounts/tenant_dashboard.html", context)
 
@@ -128,12 +163,32 @@ def tenant_dashboard(request):
 @landlord_required
 def landlord_dashboard(request):
     """Dashboard for landlord users."""
-    from properties.models import Property, PropertyInquiry
-    
+    from properties.models import Property, PropertyInquiry, RentPayment, TenantAllocation, has_paid_rent
+
     user = request.user
     properties = Property.objects.filter(landlord=user)
     inquiries = PropertyInquiry.objects.filter(property__landlord=user)
-    
+
+    # For each property, get allocations and payment info
+    property_allocations = []
+    for prop in properties:
+        allocations = prop.allocations.filter(status='active')
+        allocation_rows = []
+        for alloc in allocations:
+            paid = has_paid_rent(alloc.tenant, alloc)
+            last_payment = RentPayment.objects.filter(tenant=alloc.tenant, allocation=alloc, status='successful').order_by('-payment_date').first()
+            allocation_rows.append({
+                'tenant': alloc.tenant,
+                'room_number': alloc.room_number,
+                'rent_amount': alloc.rent_amount,
+                'paid': paid,
+                'last_payment': last_payment,
+            })
+        property_allocations.append({
+            'property': prop,
+            'allocations': allocation_rows,
+        })
+
     context = {
         'user': user,
         'role': 'landlord',
@@ -141,6 +196,7 @@ def landlord_dashboard(request):
         'active_listings': properties.filter(is_available=True).count(),
         'total_inquiries': inquiries.count(),
         'pending_inquiries': inquiries.filter(status='pending').count(),
+        'property_allocations': property_allocations,
     }
     return render(request, "accounts/landlord_dashboard.html", context)
 

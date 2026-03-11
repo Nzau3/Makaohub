@@ -95,7 +95,11 @@
             <!-- Property Details Card -->
             <div class="card mb-4">
                 <div class="card-header bg-primary text-white">
-                    <h3 class="mb-0">{{ property.title }}</h3>
+                    <h3 class="mb-0">{{ property.title }}
+                        {% if property.is_featured %}
+                            <span class="badge bg-warning text-dark ms-2">Featured</span>
+                        {% endif %}
+                    </h3>
                 </div>
                 <div class="card-body">
                     <div class="row mb-3">
@@ -196,8 +200,8 @@
                     </div>
                     <div class="card-body">
                                                 <p><strong>Listed by:</strong> {{ property.landlord.get_full_name|default:property.landlord.username }}</p>
-                                                <p class="text-muted small">Email: <code>{{ masked_landlord_email }}</code></p>
-                                                {% if user.is_authenticated and user.profile.role == 'tenant' %}
+                                                <p class="text-muted small">Email: <code class="masked-landlord-email" data-real-email="{{ property.landlord.email }}">{{ masked_landlord_email }}</code></p>
+                                                {% if user.is_authenticated and user.profile and user.profile.role|lower == 'tenant' %}
                                                         <!-- Payment Buttons: Unlock Contact, Unlock Chat, Confirm Visit/Booking -->
                                                         <div class="d-flex flex-wrap gap-2 mb-2">
                                                             <button type="button" class="btn btn-outline-primary payment-btn"

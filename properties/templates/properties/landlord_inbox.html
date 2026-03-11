@@ -31,6 +31,9 @@
                   <div class="flex-grow-1">
                     <h6 class="mb-1">
                       {{ item.inquiry.property.title }}
+                      {% if item.inquiry.property.is_featured %}
+                        <span class="badge bg-warning text-dark ms-2">Featured</span>
+                      {% endif %}
                       {% if item.has_unread %}
                         <span class="badge bg-primary">New</span>
                       {% endif %}
@@ -38,6 +41,11 @@
                     <p class="mb-1 text-muted small">
                       <strong>Tenant:</strong> {{ item.inquiry.tenant.get_full_name|default:item.inquiry.tenant.username }}
                     </p>
+                    <button type="button" class="btn btn-warning btn-sm make-featured-btn mt-2" data-property="{{ item.inquiry.property.id }}" {% if item.inquiry.property.is_featured %}disabled{% endif %}>
+                      Make Featured – KES 300 / month
+                    </button>
+                    </button>
+                  </div>
                     {% if item.last_message %}
                       <p class="mb-1 small text-truncate">
                         <strong>Last message:</strong> {{ item.last_message.body|truncatechars:100 }}

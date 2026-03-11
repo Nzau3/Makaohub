@@ -64,27 +64,98 @@
   .payment-btn.btn-success .locked-text { display: none !important; }
 </style>
 <script>
+  // Generic placeholder for all payment buttons
+  document.querySelectorAll('.payment-btn').forEach(button => {
+    button.addEventListener('click', function(){
+      alert("This feature requires payment. Payment API will be integrated later.");
+    });
+  });
   // Enable Bootstrap tooltips
   var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
   tooltipTriggerList.forEach(function (tooltipTriggerEl) {
     new bootstrap.Tooltip(tooltipTriggerEl);
   });
 
-  // Simulate payment unlock (replace with real API call later)
+  // Payment simulation logic for tenant payment buttons
+  const priceMap = {
+    contact: 50,
+    chat: 80,
+    visit: 100
+  };
   document.querySelectorAll('.payment-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
       if (btn.disabled) return;
-      // Simulate payment success
-      btn.classList.remove('btn-outline-primary', 'btn-outline-success', 'btn-outline-warning', 'btn-outline-info', 'btn-outline-secondary');
-      btn.classList.add('btn-success');
-      btn.querySelector('.locked-text').classList.add('d-none');
-      btn.querySelector('.unlocked-text').classList.remove('d-none');
-      btn.disabled = true;
-      btn.setAttribute('title', 'Feature unlocked!');
-      // Remove tooltip and re-enable for new title
-      bootstrap.Tooltip.getInstance(btn)?.dispose();
-      new bootstrap.Tooltip(btn);
-      // TODO: Insert API call for payment here
+      const feature = btn.dataset.feature;
+      const price = priceMap[feature] || 0;
+      let confirmMsg = `Simulate payment for ${feature} (KES ${price})?`;
+      if (window.confirm(confirmMsg)) {
+        btn.classList.remove('btn-outline-primary', 'btn-outline-success', 'btn-outline-warning', 'btn-outline-info', 'btn-outline-secondary');
+        btn.classList.add('btn-success');
+        btn.querySelector('.locked-text').classList.add('d-none');
+        btn.querySelector('.unlocked-text').classList.remove('d-none');
+        btn.disabled = true;
+        btn.setAttribute('title', 'Feature unlocked!');
+        bootstrap.Tooltip.getInstance(btn)?.dispose();
+        new bootstrap.Tooltip(btn);
+        // Reveal contact if feature is contact
+        if (feature === 'contact') {
+          const emailElem = document.querySelector('.masked-landlord-email');
+          if (emailElem && emailElem.dataset.realEmail) {
+            emailElem.textContent = emailElem.dataset.realEmail;
+            emailElem.classList.remove('text-muted');
+            emailElem.classList.add('text-success');
+          }
+        }
+      }
+    });
+  });
+
+  // AJAX for Make Featured button
+  document.querySelectorAll('.make-featured-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      if (btn.disabled) return;
+      var propertyId = btn.dataset.property;
+      btn.textContent = 'Processing payment...';
+      fetch(`/properties/${propertyId}/start-featured-payment/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+          'Content-Type': 'application/json'
+        },
+        credentials: 'same-origin'
+      })
+      .then(response => response.json())
+      .then(data => {
+        alert('Payment initiated. Waiting for confirmation.');
+        // Simulate payment confirmation after delay (for demo)
+        setTimeout(function() {
+          fetch(`/properties/${propertyId}/confirm-featured-payment/`, {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+              'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin'
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              btn.textContent = 'Featured Active';
+              btn.classList.remove('btn-warning');
+              btn.classList.add('btn-success');
+              btn.disabled = true;
+              btn.setAttribute('title', 'Featured until ' + data.featured_until);
+              bootstrap.Tooltip.getInstance(btn)?.dispose();
+              new bootstrap.Tooltip(btn);
+              // Optionally show badge immediately
+              location.reload();
+            } else {
+              alert('Payment failed or not confirmed.');
+              btn.textContent = 'Make Featured – KES 300 / month';
+            }
+          });
+        }, 2000);
+      });
     });
   });
 </script>

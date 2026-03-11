@@ -1,7 +1,4 @@
 {% extends "base.html" %}
-
-{% block title %}Landlord Dashboard - MakaoHub{% endblock %}
-
 {% block content %}
 <div class="py-5">
   <div class="container">
@@ -21,18 +18,28 @@
         </div>
 
         <h5 class="mt-4">My Properties</h5>
-        <div class="list-group">
-          <a href="{% url 'properties:my_properties' %}" class="list-group-item list-group-item-action">My Listings</a>
-          <a href="{% url 'properties:landlord_inbox' %}" class="list-group-item list-group-item-action">
-            <i class="fas fa-inbox me-2"></i>Inbox
-          </a>
-          <a href="{% url 'properties:inquiries' %}" class="list-group-item list-group-item-action">
-            Tenant Inquiries
-            {% if pending_inquiries > 0 %}
-              <span class="badge bg-warning float-end">{{ pending_inquiries }}</span>
-            {% endif %}
-          </a>
+        {% if properties %}
+        <div class="row">
+          {% for property in properties %}
+            <div class="col-md-6 mb-4">
+              <div class="card h-100">
+                <div class="card-body">
+                  <h5 class="card-title">{{ property.title }}
+                    {% if property.is_featured %}
+                      <span class="badge bg-warning text-dark ms-2">Featured</span>
+                    {% endif %}
+                  </h5>
+                  <p class="card-text">{{ property.location }}</p>
+                  <p class="card-text">KES {{ property.monthly_rent|floatformat:0 }}</p>
+                  <button class="btn btn-warning make-featured-btn" data-property-id="{{ property.id }}" {% if property.is_featured %}disabled{% endif %}>Make Featured – KES 300 / month</button>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
         </div>
+        {% else %}
+        <div class="alert alert-info">No properties listed yet.</div>
+        {% endif %}
       </div>
 
       <div class="col-md-4">
@@ -56,4 +63,21 @@
     </div>
   </div>
 </div>
-{% endblock %}
+{% endblock content %}
+{% block extra_js %}
+<script>
+document.querySelectorAll('.make-featured-btn').forEach(button => {
+  button.addEventListener('click', function () {
+    const propertyId = this.dataset.propertyId;
+    fetch(`/properties/activate-featured/${propertyId}/`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert("Property is now Featured for 30 days.");
+        location.reload();
+      }
+    });
+  });
+});
+</script>
+{% endblock extra_js %}
