@@ -8,6 +8,7 @@ urlpatterns = [
     path("activate-featured/<int:property_id>/", views.activate_featured, name="activate_featured"),
     path("<int:id>/start-featured-payment/", views.start_featured_payment, name="start_featured_payment"),
     path("<int:id>/confirm-featured-payment/", views.confirm_featured_payment, name="confirm_featured_payment"),
+    path("allocate/", views.allocate_tenant, name="allocate_tenant"),
     path("map/", views.properties_map_view, name="map"),
     path("<int:id>/", views.property_detail, name="detail"),
     path("<int:id>/edit/", views.property_update, name="update"),

@@ -1,52 +1,3 @@
-                {% if allocation %}
-                <div class="card mb-4">
-                  <div class="card-body">
-                    <h5 class="card-title">Allocated Property</h5>
-                    <p><strong>Property:</strong> {{ allocation.property.title }}</p>
-                    <p><strong>Room:</strong> {{ allocation.room_number|default:'-' }}</p>
-                    <p><strong>Rent Amount:</strong> KES {{ allocation.rent_amount|floatformat:0 }}</p>
-                    <p><strong>Start Date:</strong> {{ allocation.start_date|date:"F d, Y" }}</p>
-                    <p><strong>End Date:</strong> {{ allocation.end_date|date:"F d, Y" }}</p>
-                    {% if paid %}
-                      <span class="badge bg-success">Paid</span>
-                      <p class="text-muted small">Last Payment: {{ last_payment.payment_date|date:"F d, Y H:i" }}</p>
-                    {% else %}
-                      <span class="badge bg-danger">Pending</span>
-                      <button class="btn btn-primary mt-2" onclick="simulatePayRent({{ allocation.property.id }})">Pay Rent</button>
-                    {% endif %}
-                  </div>
-                </div>
-                {% endif %}
-        {% if allocated_property %}
-        <div class="card mb-4">
-          <div class="card-body">
-            <h5 class="card-title">Allocated Property</h5>
-            <p><strong>Property:</strong> {{ allocated_property.title }}</p>
-            <p><strong>Rent Amount:</strong> KES {{ allocated_property.monthly_rent|floatformat:0 }}</p>
-            {% if rent_payment and rent_payment.status == 'successful' %}
-              <span class="badge bg-success">Paid</span>
-              <p class="text-muted small">Last Payment: {{ rent_payment.payment_date|date:"F d, Y H:i" }}</p>
-            {% else %}
-              <span class="badge bg-danger">Pending</span>
-              <button class="btn btn-primary mt-2" onclick="simulatePayRent({{ allocated_property.id }})">Pay Rent</button>
-            {% endif %}
-          </div>
-        </div>
-        {% endif %}
-<script>
-function simulatePayRent(propertyId) {
-  alert('Payment integration coming soon. Your rent will be processed through the platform.');
-  // Simulate successful payment
-  fetch('/accounts/simulate_rent_payment/' + propertyId + '/', {
-    method: 'POST',
-    headers: {
-      'X-CSRFToken': '{{ csrf_token }}',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({})
-  }).then(response => location.reload());
-}
-</script>
 {% extends "base.html" %}
 
 {% block title %}Tenant Dashboard - MakaoHub{% endblock %}
@@ -69,14 +20,41 @@ function simulatePayRent(propertyId) {
           </div>
         </div>
 
+        {% if allocation %}
+        <div class="card mb-4">
+          <div class="card-body">
+            <h5 class="card-title">Allocated Property</h5>
+            <p class="mb-1"><strong>Property:</strong> {{ allocation.property.title }}</p>
+            <p class="mb-1"><strong>Room:</strong> {{ allocation.room_number|default:"-" }}</p>
+            <p class="mb-1"><strong>Rent:</strong> KES {{ allocation.rent_amount|floatformat:0 }}</p>
+            <p class="mb-1"><strong>Status:</strong>
+              {% if paid %}
+                <span class="badge bg-success">Paid</span>
+              {% else %}
+                <span class="badge bg-danger">Pending</span>
+              {% endif %}
+            </p>
+            {% if last_payment %}
+              <p class="text-muted small mb-3">Last Payment: {{ last_payment.payment_date|default:last_payment.created_at|date:"F d, Y H:i" }}</p>
+            {% endif %}
+
+            {% if not paid %}
+              <button type="button" class="btn btn-primary" onclick="alert('Payment integration coming soon. M-Pesa payments will be enabled soon.');">
+                Pay Rent
+              </button>
+            {% endif %}
+          </div>
+        </div>
+        {% else %}
+          <div class="alert alert-info">You do not have an active allocation yet.</div>
+        {% endif %}
+
         <h5 class="mt-4">My Activity</h5>
         <div class="list-group mb-4">
-          <a href="{% url 'properties:tenant_inbox' %}" class="list-group-item list-group-item-action">
-            <i class="fas fa-inbox me-2"></i>Inbox
-          </a>
+          <a href="{% url 'properties:tenant_inbox' %}" class="list-group-item list-group-item-action">Inbox</a>
           <a href="{% url 'properties:list' %}" class="list-group-item list-group-item-action">Browse Available Rentals</a>
           <a href="{% url 'properties:saved' %}" class="list-group-item list-group-item-action">My Saved Properties</a>
-          <a href="{% url 'core:contact' %}" class="list-group-item list-group-item-action">Contact Landlords</a>
+          <a href="{% url 'core:contact' %}" class="list-group-item list-group-item-action">Contact</a>
         </div>
 
         <h5 class="mt-3">Saved Properties</h5>
@@ -85,7 +63,6 @@ function simulatePayRent(propertyId) {
             {% for property in saved_properties %}
               <div class="col-md-6 mb-3">
                 <div class="card h-100 shadow-sm">
-                  <!-- Thumbnail -->
                   {% if property.images.first %}
                     <img src="{{ property.images.first.image.url }}" class="card-img-top" alt="{{ property.title }}" style="height: 140px; object-fit: cover;">
                   {% else %}
@@ -102,7 +79,10 @@ function simulatePayRent(propertyId) {
                     </p>
                     <div class="d-grid gap-1">
                       <a href="{% url 'properties:detail' property.id %}" class="btn btn-sm btn-primary">View Details</a>
-                      <a href="{% url 'properties:unsave' property.id %}" class="btn btn-sm btn-outline-danger">Remove</a>
+                      <form method="post" action="{% url 'properties:unsave' property.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                      </form>
                     </div>
                   </div>
                 </div>
@@ -110,7 +90,7 @@ function simulatePayRent(propertyId) {
             {% endfor %}
           </div>
         {% else %}
-          <p class="text-muted small">You haven't saved any properties yet. Browse listings and save the ones you like.</p>
+          <p class="text-muted small">You haven't saved any properties yet.</p>
         {% endif %}
       </div>
 

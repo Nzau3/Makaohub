@@ -1,23 +1,22 @@
 from .decorators import tenant_required, landlord_required
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 @login_required
 @tenant_required
-@csrf_exempt
+@require_POST
 def simulate_rent_payment(request, property_id):
-    """Simulate a successful rent payment for the allocated property."""
-    from properties.models import Property, RentPayment
-    user = request.user
-    property_obj = Property.objects.get(id=property_id)
-    amount = property_obj.monthly_rent
-    RentPayment.objects.create(
-        tenant=user,
-        allocation=property_obj,
-        amount=amount,
-        status='successful'
+    """
+    Placeholder endpoint for future rent payments.
+    Real M-Pesa integration will be added later.
+    """
+    return JsonResponse(
+        {
+            "success": False,
+            "message": "Payment integration coming soon. M-Pesa payments will be enabled soon.",
+        },
+        status=200,
     )
-    return JsonResponse({'status': 'success'})
 
 
 from django.contrib.auth.decorators import login_required
@@ -140,12 +139,20 @@ def tenant_dashboard(request):
     saved_properties = [sp.property for sp in saved_qs]
     saved_count = len(saved_properties)
 
-    allocation = TenantAllocation.objects.filter(tenant=user, status='active').first()
+    allocation = TenantAllocation.objects.filter(tenant=user, status=TenantAllocation.Status.ACTIVE).select_related("property").first()
     paid = False
     last_payment = None
     if allocation:
-        paid = has_paid_rent(user, allocation)
-        last_payment = RentPayment.objects.filter(tenant=user, allocation=allocation, status='successful').order_by('-payment_date').first()
+        paid = has_paid_rent(allocation)
+        last_payment = (
+            RentPayment.objects.filter(
+                tenant=user,
+                allocation=allocation,
+                status=RentPayment.Status.SUCCESSFUL,
+            )
+            .order_by("-payment_date", "-created_at")
+            .first()
+        )
 
     context = {
         "user": user,
@@ -172,11 +179,19 @@ def landlord_dashboard(request):
     # For each property, get allocations and payment info
     property_allocations = []
     for prop in properties:
-        allocations = prop.allocations.filter(status='active')
+        allocations = prop.allocations.filter(status=TenantAllocation.Status.ACTIVE).select_related("tenant")
         allocation_rows = []
         for alloc in allocations:
-            paid = has_paid_rent(alloc.tenant, alloc)
-            last_payment = RentPayment.objects.filter(tenant=alloc.tenant, allocation=alloc, status='successful').order_by('-payment_date').first()
+            paid = has_paid_rent(alloc)
+            last_payment = (
+                RentPayment.objects.filter(
+                    tenant=alloc.tenant,
+                    allocation=alloc,
+                    status=RentPayment.Status.SUCCESSFUL,
+                )
+                .order_by("-payment_date", "-created_at")
+                .first()
+            )
             allocation_rows.append({
                 'tenant': alloc.tenant,
                 'room_number': alloc.room_number,

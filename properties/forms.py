@@ -20,6 +20,10 @@ from django import forms
 from django.forms import inlineformset_factory
 
 from .models import Property, PropertyImage, PropertyInquiry
+from .models import TenantAllocation
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
 class PropertyFilterForm(forms.Form):
@@ -160,3 +164,32 @@ class MessageForm(forms.Form):
 		if len(body) > 2000:
 			raise forms.ValidationError("Message must be 2000 characters or less.")
 		return body
+
+
+class TenantAllocationForm(forms.ModelForm):
+	"""
+	Landlord-facing form to allocate a tenant to one of their properties.
+	"""
+
+	class Meta:
+		model = TenantAllocation
+		fields = ["property", "tenant", "room_number", "start_date", "end_date"]
+		widgets = {
+			"property": forms.Select(attrs={"class": "form-select"}),
+			"tenant": forms.Select(attrs={"class": "form-select"}),
+			"room_number": forms.TextInput(attrs={"class": "form-control", "placeholder": "Optional"}),
+			"start_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+			"end_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+		}
+
+	def __init__(self, *args, landlord=None, **kwargs):
+		super().__init__(*args, **kwargs)
+		if landlord is not None:
+			qs = Property.objects.filter(landlord=landlord)
+			self.fields["property"].queryset = qs
+			self.fields["property"].choices = [
+				("", "---------"),
+				*[(p.pk, f"{p.title} — KES {p.monthly_rent:,.0f}/month") for p in qs],
+			]
+		# Only show tenant users
+		self.fields["tenant"].queryset = User.objects.filter(profile__role="tenant").order_by("username")

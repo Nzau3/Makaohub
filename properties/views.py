@@ -1,60 +1,50 @@
 from django.contrib.auth.decorators import login_required
-from django.utils import timezone
 from django.http import JsonResponse
-from datetime import timedelta
-@login_required
-def activate_featured(request, property_id):
-	property = get_object_or_404(Property, id=property_id, landlord=request.user)
-	property.is_featured = True
-	property.featured_until = timezone.now() + timedelta(days=30)
-	property.save()
-	return JsonResponse({
-		"success": True,
-		"message": "Property featured successfully"
-	})
+from django.views.decorators.http import require_POST
+
 from accounts.decorators import landlord_required
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_exempt
-# Simulated Payment model
-from django.db import models
-from django.conf import settings as django_settings
-from .models import Payment
+from .models import Property
 
-@login_required
-@landlord_required
-@csrf_exempt
-def start_featured_payment(request, id):
-	"""Simulate payment initiation for featured listing."""
-	property = get_object_or_404(Property, id=id, landlord=request.user)
-	payment = Payment.objects.create(
-		user=request.user,
-		property=property,
-		feature="featured_listing",
-		amount=300,
-		status="pending"
+
+def _payment_placeholder():
+	return JsonResponse(
+		{
+			"success": False,
+			"message": "Payment integration coming soon. M-Pesa payments will be enabled soon.",
+		},
+		status=200,
 	)
-	return JsonResponse({"message": "Payment started", "payment_id": payment.id})
+
 
 @login_required
 @landlord_required
-@csrf_exempt
+@require_POST
+def activate_featured(request, property_id):
+	"""
+	Placeholder endpoint for future featured listing payments.
+	Real payment integration will be added later.
+	"""
+	_ = Property.objects.filter(id=property_id, landlord=request.user).exists()
+	return _payment_placeholder()
+
+
+@login_required
+@landlord_required
+@require_POST
+def start_featured_payment(request, id):
+	"""Placeholder: future payment initiation."""
+	_ = Property.objects.filter(id=id, landlord=request.user).exists()
+	return _payment_placeholder()
+
+
+@login_required
+@landlord_required
+@require_POST
 def confirm_featured_payment(request, id):
-	"""Simulate payment confirmation and activate featured status."""
-	property = get_object_or_404(Property, id=id, landlord=request.user)
-	payment = Payment.objects.filter(property=property, user=request.user, feature="featured_listing", status="pending").last()
-	if payment:
-		payment.status = "success"
-		payment.save()
-		property.is_featured = True
-		from django.utils import timezone
-		from datetime import timedelta
-		property.featured_until = timezone.now() + timedelta(days=30)
-		property.save()
-		return JsonResponse({"success": True, "featured_until": property.featured_until.strftime('%Y-%m-%d %H:%M:%S')})
-	return JsonResponse({"success": False})
-from django.http import JsonResponse
-from django.utils import timezone
-from datetime import timedelta
+	"""Placeholder: future payment confirmation."""
+	_ = Property.objects.filter(id=id, landlord=request.user).exists()
+	return _payment_placeholder()
+
 from django.conf import settings as django_settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -69,6 +59,7 @@ from .forms import (
 	PropertyForm,
 	PropertyImageFormSet,
 	PropertyInquiryForm,
+	TenantAllocationForm,
 )
 from .models import Property, PropertyImage, PropertyInquiry
 from .utils import mask_email, mask_phone
@@ -251,7 +242,7 @@ def properties_map_view(request):
 
 def property_detail(request, id):
 	"""Show a single rental property with images and location data."""
-	from .models import SavedProperty
+	from .models import ContactPayment, SavedProperty
 
 	prop = get_object_or_404(Property, id=id)
 	images = prop.images.all()
@@ -260,6 +251,15 @@ def property_detail(request, id):
 	is_saved = False
 	if request.user.is_authenticated and hasattr(request.user, "profile") and request.user.profile.role == "tenant":
 		is_saved = SavedProperty.objects.filter(tenant=request.user, property=prop).exists()
+
+	# Contact unlock: show real contact only if tenant has successful payment for this property
+	contact_unlocked = False
+	if request.user.is_authenticated and hasattr(request.user, "profile") and request.user.profile.role == "tenant":
+		contact_unlocked = ContactPayment.objects.filter(
+			tenant=request.user,
+			property=prop,
+			status=ContactPayment.Status.SUCCESSFUL,
+		).exists()
 
 	# Google Maps API key: when set, detail template shows small Google Maps preview (Leaflet kept as-is)
 	google_maps_api_key = getattr(django_settings, "GOOGLE_MAPS_API_KEY", "") or ""
@@ -271,6 +271,7 @@ def property_detail(request, id):
 			"property": prop,
 			"images": images,
 			"is_saved": is_saved,
+			"contact_unlocked": contact_unlocked,
 			"google_maps_api_key": google_maps_api_key,
 			"masked_landlord_email": mask_email(prop.landlord.email),
 		},
@@ -317,6 +318,31 @@ def my_properties(request):
     """Show properties added by the logged-in landlord."""
     properties = Property.objects.filter(landlord=request.user)
     return render(request, "properties/my_properties.html", {"properties": properties})
+
+
+@login_required
+@landlord_required
+def allocate_tenant(request):
+	"""
+	Landlord interface to allocate a tenant to one of their properties.
+	Creates an active TenantAllocation.
+	"""
+	from .models import TenantAllocation
+
+	if request.method == "POST":
+		form = TenantAllocationForm(request.POST, landlord=request.user)
+		if form.is_valid():
+			allocation = form.save(commit=False)
+			allocation.landlord = request.user
+			allocation.status = TenantAllocation.Status.ACTIVE
+			allocation.save()
+			messages.success(request, "Tenant allocated successfully.")
+			return redirect("accounts:landlord_dashboard")
+		messages.error(request, "Please correct the errors below.")
+	else:
+		form = TenantAllocationForm(landlord=request.user)
+
+	return render(request, "properties/allocate_tenant.html", {"form": form})
 
 
 @login_required

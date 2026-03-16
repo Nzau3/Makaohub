@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Allocate Tenant | MakaoHub{% endblock %}
+
+{% block content %}
+<div class="my-5">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Allocate Tenant</h1>
+    <a href="{% url 'accounts:landlord_dashboard' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="alert alert-info mb-3">
+        Monthly rent is set automatically from the selected property.
+      </div>
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Property</label>
+            {{ form.property }}
+            <div class="text-danger small">{{ form.property.errors }}</div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Tenant</label>
+            {{ form.tenant }}
+            <div class="text-danger small">{{ form.tenant.errors }}</div>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Room Number (optional)</label>
+            {{ form.room_number }}
+            <div class="text-danger small">{{ form.room_number.errors }}</div>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Start Date</label>
+            {{ form.start_date }}
+            <div class="text-danger small">{{ form.start_date.errors }}</div>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">End Date (optional)</label>
+            {{ form.end_date }}
+            <div class="text-danger small">{{ form.end_date.errors }}</div>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <button class="btn btn-primary" type="submit">Allocate Tenant</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

@@ -110,54 +110,7 @@
     });
   });
 
-  // AJAX for Make Featured button
-  document.querySelectorAll('.make-featured-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      if (btn.disabled) return;
-      var propertyId = btn.dataset.property;
-      btn.textContent = 'Processing payment...';
-      fetch(`/properties/${propertyId}/start-featured-payment/`, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
-          'Content-Type': 'application/json'
-        },
-        credentials: 'same-origin'
-      })
-      .then(response => response.json())
-      .then(data => {
-        alert('Payment initiated. Waiting for confirmation.');
-        // Simulate payment confirmation after delay (for demo)
-        setTimeout(function() {
-          fetch(`/properties/${propertyId}/confirm-featured-payment/`, {
-            method: 'POST',
-            headers: {
-              'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
-              'Content-Type': 'application/json'
-            },
-            credentials: 'same-origin'
-          })
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              btn.textContent = 'Featured Active';
-              btn.classList.remove('btn-warning');
-              btn.classList.add('btn-success');
-              btn.disabled = true;
-              btn.setAttribute('title', 'Featured until ' + data.featured_until);
-              bootstrap.Tooltip.getInstance(btn)?.dispose();
-              new bootstrap.Tooltip(btn);
-              // Optionally show badge immediately
-              location.reload();
-            } else {
-              alert('Payment failed or not confirmed.');
-              btn.textContent = 'Make Featured – KES 300 / month';
-            }
-          });
-        }, 2000);
-      });
-    });
-  });
+  // Featured listing payments will be integrated later (M-Pesa).
 </script>
 {% block extra_js %}{% endblock %}
 </body>

@@ -199,55 +199,30 @@
                         <h5 class="mb-0">Contact Landlord</h5>
                     </div>
                     <div class="card-body">
-                                                <p><strong>Listed by:</strong> {{ property.landlord.get_full_name|default:property.landlord.username }}</p>
-                                                <p class="text-muted small">Email: <code class="masked-landlord-email" data-real-email="{{ property.landlord.email }}">{{ masked_landlord_email }}</code></p>
-                                                {% if user.is_authenticated and user.profile and user.profile.role|lower == 'tenant' %}
-                                                        <!-- Payment Buttons: Unlock Contact, Unlock Chat, Confirm Visit/Booking -->
-                                                        <div class="d-flex flex-wrap gap-2 mb-2">
-                                                            <button type="button" class="btn btn-outline-primary payment-btn"
-                                                                data-feature="contact"
-                                                                data-bs-toggle="tooltip"
-                                                                data-bs-placement="top"
-                                                                title="Unlock landlord's contact details for KES 50. Payment required."
-                                                                {% if not user.profile.phone_number %}disabled{% endif %}>
-                                                                <span class="locked-text">Unlock Contact (KES 50)</span>
-                                                                <span class="unlocked-text d-none">Contact Unlocked</span>
-                                                            </button>
-                                                            <button type="button" class="btn btn-outline-success payment-btn"
-                                                                data-feature="chat"
-                                                                data-bs-toggle="tooltip"
-                                                                data-bs-placement="top"
-                                                                title="Unlock chat with landlord for KES 80. Payment required."
-                                                                {% if not user.profile.phone_number %}disabled{% endif %}>
-                                                                <span class="locked-text">Unlock Chat (KES 80)</span>
-                                                                <span class="unlocked-text d-none">Chat Unlocked</span>
-                                                            </button>
-                                                            <button type="button" class="btn btn-outline-warning payment-btn"
-                                                                data-feature="visit"
-                                                                data-bs-toggle="tooltip"
-                                                                data-bs-placement="top"
-                                                                title="Confirm a visit or booking for KES 100. Payment required."
-                                                                {% if not user.profile.phone_number %}disabled{% endif %}>
-                                                                <span class="locked-text">Confirm Visit/Booking (KES 100)</span>
-                                                                <span class="unlocked-text d-none">Visit/Booking Confirmed</span>
-                                                            </button>
-                                                        </div>
-                                                        {% if not user.profile.phone_number %}
-                                                            <div class="alert alert-info mt-2">
-                                                                <i class="bi bi-info-circle"></i>
-                                                                Please add your phone number to your profile to enable payments.
-                                                            </div>
-                                                        {% endif %}
-                                                        <a href="{% url 'properties:send_inquiry' property.id %}" class="btn btn-success w-100 mb-2">Inquire About Property</a>
-                                                        <form method="post" action="{% if is_saved %}{% url 'properties:unsave' property.id %}{% else %}{% url 'properties:save' property.id %}{% endif %}">
-                                                                {% csrf_token %}
-                                                                <button type="submit" class="btn {% if is_saved %}btn-outline-danger{% else %}btn-outline-primary{% endif %} w-100">
-                                                                        {% if is_saved %}Remove from Saved{% else %}Save Property{% endif %}
-                                                                </button>
-                                                        </form>
-                                                {% else %}
-                                                        <a href="{% url 'properties:send_inquiry' property.id %}" class="btn btn-success w-100">Inquire About Property</a>
-                                                {% endif %}
+                        <p><strong>Listed by:</strong> {{ property.landlord.get_full_name|default:property.landlord.username }}</p>
+
+                        {% if user.is_authenticated and user.profile and user.profile.role|lower == 'tenant' %}
+                          {% if contact_unlocked %}
+                            <p class="text-muted small mb-1">Email: <code>{{ property.landlord.email }}</code></p>
+                          {% else %}
+                            <p class="text-muted small mb-1">Contact: <strong>Locked</strong></p>
+                            <button type="button" class="btn btn-outline-primary w-100 mb-2"
+                              onclick="alert('Payment integration coming soon. M-Pesa payments will be enabled soon.');">
+                              Pay to Unlock Contact
+                            </button>
+                          {% endif %}
+
+                          <a href="{% url 'properties:send_inquiry' property.id %}" class="btn btn-success w-100 mb-2">Inquire About Property</a>
+                          <form method="post" action="{% if is_saved %}{% url 'properties:unsave' property.id %}{% else %}{% url 'properties:save' property.id %}{% endif %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn {% if is_saved %}btn-outline-danger{% else %}btn-outline-primary{% endif %} w-100">
+                              {% if is_saved %}Remove from Saved{% else %}Save Property{% endif %}
+                            </button>
+                          </form>
+                        {% else %}
+                          <p class="text-muted small">Email: <code>{{ masked_landlord_email }}</code></p>
+                          <a href="{% url 'properties:send_inquiry' property.id %}" class="btn btn-success w-100">Inquire About Property</a>
+                        {% endif %}
                     </div>
                 </div>
             {% endif %}

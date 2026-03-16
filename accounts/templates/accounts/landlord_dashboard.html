@@ -31,7 +31,9 @@
                   </h5>
                   <p class="card-text">{{ property.location }}</p>
                   <p class="card-text">KES {{ property.monthly_rent|floatformat:0 }}</p>
-                  <button class="btn btn-warning make-featured-btn" data-property-id="{{ property.id }}" {% if property.is_featured %}disabled{% endif %}>Make Featured – KES 300 / month</button>
+                  <button type="button" class="btn btn-warning" {% if property.is_featured %}disabled{% endif %} onclick="alert('Payment integration coming soon. M-Pesa payments will be enabled soon.');">
+                    Make Featured – KES 300 / month
+                  </button>
                 </div>
               </div>
             </div>
@@ -39,6 +41,48 @@
         </div>
         {% else %}
         <div class="alert alert-info">No properties listed yet.</div>
+        {% endif %}
+
+        <div class="d-flex justify-content-between align-items-center mt-4">
+          <h5 class="mb-0">Allocated Tenants</h5>
+          <a class="btn btn-sm btn-primary" href="{% url 'properties:allocate_tenant' %}">Allocate Tenant</a>
+        </div>
+
+        {% if property_allocations %}
+          <div class="table-responsive mt-3">
+            <table class="table table-sm table-striped align-middle">
+              <thead>
+                <tr>
+                  <th>Tenant</th>
+                  <th>Property</th>
+                  <th>Room</th>
+                  <th>Rent</th>
+                  <th>Payment Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in property_allocations %}
+                  {% for alloc in row.allocations %}
+                    <tr>
+                      <td>{{ alloc.tenant.get_full_name|default:alloc.tenant.username }}</td>
+                      <td>{{ row.property.title }}</td>
+                      <td>{{ alloc.room_number|default:"-" }}</td>
+                      <td>KES {{ alloc.rent_amount|floatformat:0 }}</td>
+                      <td>
+                        {% if alloc.paid %}
+                          <span class="badge bg-success">Paid</span>
+                        {% else %}
+                          <span class="badge bg-danger">Pending</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="alert alert-secondary mt-3 mb-0">No active allocations yet.</div>
         {% endif %}
       </div>
 
@@ -64,20 +108,4 @@
   </div>
 </div>
 {% endblock content %}
-{% block extra_js %}
-<script>
-document.querySelectorAll('.make-featured-btn').forEach(button => {
-  button.addEventListener('click', function () {
-    const propertyId = this.dataset.propertyId;
-    fetch(`/properties/activate-featured/${propertyId}/`)
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        alert("Property is now Featured for 30 days.");
-        location.reload();
-      }
-    });
-  });
-});
-</script>
-{% endblock extra_js %}
+{% block extra_js %}{% endblock extra_js %}

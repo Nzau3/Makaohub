@@ -1,69 +1,220 @@
-from django.conf import settings
-from django.db import models
-from datetime import date
+from __future__ import annotations
 
-def has_paid_rent(tenant, allocation):
-	from .models import RentPayment
+from datetime import date, timedelta
+
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.db.models import Q
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+
+
+def has_paid_rent(allocation: "TenantAllocation") -> bool:
+	"""
+	Return True if the tenant has a successful rent payment for this allocation
+	in the current month.
+	"""
 	today = date.today()
-	# Filter payments for current month and year
-	payments = RentPayment.objects.filter(
-		tenant=tenant,
+	return RentPayment.objects.filter(
 		allocation=allocation,
-		status='successful',
-		payment_date__year=today.year,
-		payment_date__month=today.month
-	)
-	return payments.exists()
+		tenant=allocation.tenant,
+		status=RentPayment.Status.SUCCESSFUL,
+		created_at__year=today.year,
+		created_at__month=today.month,
+	).exists()
+
+
 class TenantAllocation(models.Model):
-	property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='allocations')
-	tenant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='allocations')
+	"""
+	Represents a tenancy relationship between a tenant and a property.
+	Landlord must match the property's owner.
+	"""
+
+	class Status(models.TextChoices):
+		ACTIVE = "active", _("Active")
+		ENDED = "ended", _("Ended")
+
+	tenant = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		on_delete=models.CASCADE,
+		related_name="allocations",
+	)
+	property = models.ForeignKey(
+		"Property",
+		on_delete=models.CASCADE,
+		related_name="allocations",
+	)
+	landlord = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		on_delete=models.CASCADE,
+		related_name="tenant_allocations_as_landlord",
+	)
 	room_number = models.CharField(max_length=20, blank=True, null=True)
-	rent_amount = models.DecimalField(max_digits=10, decimal_places=2)
-	start_date = models.DateField()
+	rent_amount = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
+	start_date = models.DateField(default=timezone.localdate)
 	end_date = models.DateField(blank=True, null=True)
-	STATUS_CHOICES = [
-		('pending', 'Pending'),
-		('active', 'Active'),
-		('completed', 'Completed'),
-	]
-	status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+	status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+	created_at = models.DateTimeField(default=timezone.now, editable=False)
 
 	class Meta:
-		unique_together = [['property', 'tenant', 'room_number', 'status']]
-		ordering = ['-start_date']
+		ordering = ["-start_date"]
+		constraints = [
+			models.UniqueConstraint(
+				fields=["tenant", "property"],
+				condition=Q(status="active"),
+				name="uniq_active_allocation_per_tenant_property",
+			),
+		]
+
+	def clean(self):
+		super().clean()
+		if not self.property_id:
+			return
+
+		# Always enforce landlord + rent from the property (read-only fields)
+		expected_landlord_id = self.property.landlord_id
+		expected_rent = self.property.monthly_rent
+
+		if self.landlord_id and self.landlord_id != expected_landlord_id:
+			raise ValidationError({"landlord": "Landlord must match the property's owner."})
+
+		if self.rent_amount and self.rent_amount != expected_rent:
+			raise ValidationError({"rent_amount": "Rent must match the property's monthly rent."})
+
+	def save(self, *args, **kwargs):
+		# Always derive these fields server-side to prevent tampering.
+		if self.property_id:
+			self.landlord_id = self.property.landlord_id
+			self.rent_amount = self.property.monthly_rent
+
+		self.full_clean()
+		return super().save(*args, **kwargs)
 
 	def __str__(self):
-		return f"{self.tenant.username} allocated to {self.property.title} (Room: {self.room_number or 'N/A'})"
+		return f"{self.tenant} -> {self.property} ({self.status})"
 
-from django.db import models
-from django.conf import settings
 
 class RentPayment(models.Model):
-	tenant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='rent_payments')
-	allocation = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='rent_allocations')
+	"""
+	Rent payments are always linked to a TenantAllocation (not directly to Property).
+	Amount is derived from allocation.rent_amount.
+	"""
+
+	class Status(models.TextChoices):
+		PENDING = "pending", _("Pending")
+		SUCCESSFUL = "successful", _("Successful")
+		FAILED = "failed", _("Failed")
+
+	class Method(models.TextChoices):
+		MPESA = "mpesa", _("M-Pesa")
+		CASH = "cash", _("Cash")
+		OTHER = "other", _("Other")
+
+	tenant = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		on_delete=models.CASCADE,
+		related_name="rent_payments",
+	)
+	allocation = models.ForeignKey(
+		TenantAllocation,
+		on_delete=models.CASCADE,
+		related_name="rent_payments",
+	)
 	amount = models.DecimalField(max_digits=10, decimal_places=2)
-	payment_date = models.DateTimeField(auto_now_add=True)
-	status = models.CharField(max_length=20, choices=[('successful', 'Successful'), ('pending', 'Pending')], default='pending')
+	payment_method = models.CharField(max_length=20, choices=Method.choices, default=Method.MPESA)
+	status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+	mpesa_receipt = models.CharField(max_length=50, blank=True, null=True)
+	payment_date = models.DateTimeField(blank=True, null=True)
+	created_at = models.DateTimeField(default=timezone.now, editable=False)
 
 	class Meta:
-		ordering = ['-payment_date']
-		unique_together = [['tenant', 'allocation', 'payment_date']]
+		ordering = ["-created_at"]
+
+	def clean(self):
+		super().clean()
+		if self.allocation_id:
+			if self.tenant_id and self.tenant_id != self.allocation.tenant_id:
+				raise ValidationError({"tenant": "Tenant must match allocation.tenant."})
+			if self.allocation.status != TenantAllocation.Status.ACTIVE:
+				raise ValidationError({"allocation": "Tenant must have an active allocation before paying rent."})
+
+			# Always derive amount from allocation
+			if self.amount != self.allocation.rent_amount:
+				self.amount = self.allocation.rent_amount
+
+			# Prevent duplicate payments for same allocation in same month (pending/successful)
+			month_anchor = self.payment_date or timezone.now()
+			start = month_anchor.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+			end = (start + timedelta(days=32)).replace(day=1)
+			exists = (
+				RentPayment.objects.filter(
+					allocation=self.allocation,
+					tenant=self.allocation.tenant,
+					created_at__gte=start,
+					created_at__lt=end,
+				)
+				.exclude(pk=self.pk)
+				.exclude(status=RentPayment.Status.FAILED)
+				.exists()
+			)
+			if exists:
+				raise ValidationError("Duplicate rent payment for this month is not allowed.")
+
+	def save(self, *args, **kwargs):
+		if self.allocation_id:
+			self.tenant_id = self.allocation.tenant_id
+			self.amount = self.allocation.rent_amount
+			if self.status == RentPayment.Status.SUCCESSFUL and not self.payment_date:
+				self.payment_date = timezone.now()
+		self.full_clean()
+		return super().save(*args, **kwargs)
 
 	def __str__(self):
-		return f"RentPayment: {self.tenant.username} for {self.allocation.title} ({self.status})"
-from django.db import models
-# Payment model for featured listing payments
-from django.conf import settings as django_settings
-class Payment(models.Model):
-	user = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-	property = models.ForeignKey('Property', on_delete=models.CASCADE)
-	feature = models.CharField(max_length=50)
+		return f"RentPayment({self.tenant} / {self.allocation_id} / {self.status})"
+
+
+class ContactPayment(models.Model):
+	class Status(models.TextChoices):
+		PENDING = "pending", _("Pending")
+		SUCCESSFUL = "successful", _("Successful")
+
+	tenant = models.ForeignKey(
+		settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="contact_payments"
+	)
+	property = models.ForeignKey("Property", on_delete=models.CASCADE, related_name="contact_payments")
 	amount = models.DecimalField(max_digits=10, decimal_places=2)
-	status = models.CharField(max_length=20, default='pending')
-	created_at = models.DateTimeField(auto_now_add=True)
-from django.conf import settings
-from django.db import models
-from django.utils.translation import gettext_lazy as _
+	status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+	transaction_id = models.CharField(max_length=100, blank=True, null=True)
+	created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+	class Meta:
+		ordering = ["-created_at"]
+
+
+class FeaturedPayment(models.Model):
+	class Status(models.TextChoices):
+		PENDING = "pending", _("Pending")
+		SUCCESSFUL = "successful", _("Successful")
+		FAILED = "failed", _("Failed")
+
+	landlord = models.ForeignKey(
+		settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="featured_payments"
+	)
+	property = models.ForeignKey("Property", on_delete=models.CASCADE, related_name="featured_payments")
+	amount = models.DecimalField(max_digits=10, decimal_places=2)
+	status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+	transaction_id = models.CharField(max_length=100, blank=True, null=True)
+	featured_until = models.DateTimeField(blank=True, null=True)
+	created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+	class Meta:
+		ordering = ["-created_at"]
+
+	def clean(self):
+		super().clean()
+		if self.property_id and self.landlord_id and self.property.landlord_id != self.landlord_id:
+			raise ValidationError({"property": "Property must belong to the landlord."})
 
 
 class PropertyQuerySet(models.QuerySet):
